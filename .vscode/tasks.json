@@ -1,0 +1,36 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "make",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build_debug",
+            "type": "shell",
+            "command": "make DEBUG=y",
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "make_clean",
+            "type": "shell",
+            "command": "make clean",
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "run",
+            "type": "shell",
+            "command": "build/release/main",
+            "dependsOn": "build",
+            "problemMatcher": []
+        }
+    ]
+}
