@@ -73,7 +73,8 @@
         "cfenv": "cpp",
         "cinttypes": "cpp",
         "typeindex": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "variant": "cpp"
     },
     "python.linting.enabled": true
 }

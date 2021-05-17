@@ -5,12 +5,6 @@
 
 #include <ostream>
 
-/**
- *  @file code_generator.hpp
- *  Definitions of classes that generate some code
- *  from abstract structure of a code.
- */
-
 namespace fri
 {
     /**
@@ -36,9 +30,13 @@ namespace fri
     public:
         PseudocodePrinter(std::ostream& ost);
 
-        auto visit (Class const& c)     -> void override;
-        auto visit (Method const& c)    -> void override;
-        auto visit (Statement const& c) -> void override;
+        virtual auto visit (Class const& c)  -> void;
+        virtual auto visit (Method const& c) -> void;
+
+        virtual auto visit (ForLoop const& c)           -> void;
+        virtual auto visit (WhileLoop const& c)         -> void;
+        virtual auto visit (DoWhileLoop const& c)       -> void;
+        virtual auto visit (CompoundStatement const& c) -> void;
     };
 }
 

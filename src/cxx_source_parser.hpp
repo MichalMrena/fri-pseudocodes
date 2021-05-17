@@ -3,13 +3,14 @@
 
 #include "abstract_code.hpp"
 
+#include <string>
+
 namespace fri
 {
-    class CxxSourceParser
-    {
-    public:
-        auto parse_code (std::string const& code) -> TranslationUnit;
-    };
+    /**
+     *  @brief Our function that interacts with clang black magic.
+     */
+    auto extract_code (std::string const& code) -> TranslationUnit;
 }
 
 #endif
