@@ -10,6 +10,12 @@ namespace fri
 {
     class CodeVisitor;
 
+    template<class Derived>
+    struct Visitable
+    {
+
+    };
+
     /**
      *  @brief Base class for expressions.
      */
@@ -71,28 +77,24 @@ namespace fri
     };
 
     /**
-     *  @brief Base class for variable definitions.
+     *  @brief Variable definition.
      */
-    struct VariableDefinitionBase : public Statement
+    struct VariableDefinition : public Statement
     {
         std::string                 type_;
         std::string                 name_;
         std::unique_ptr<Expression> initializer_ {};
+
+        auto accept (CodeVisitor& visitor) const -> void override;
     };
 
     /**
      *  @brief Class field definition.
      */
-    struct FieldDefinition : public VariableDefinitionBase
+    struct FieldDefinition : public Statement
     {
-        auto accept (CodeVisitor& visitor) const -> void override;
-    };
+        VariableDefinition var_;
 
-    /**
-     *  @brief Variable definition.
-     */
-    struct VariableDefinition : public VariableDefinitionBase
-    {
         auto accept (CodeVisitor& visitor) const -> void override;
     };
 
@@ -150,15 +152,6 @@ namespace fri
         virtual auto visit (FieldDefinition const& c)    -> void = 0;
         virtual auto visit (VariableDefinition const& c) -> void = 0;
         virtual auto visit (CompoundStatement const& c)  -> void = 0;
-
-        virtual auto visit_post (Class const&)              -> void { };
-        virtual auto visit_post (Method const&)             -> void { };
-        virtual auto visit_post (ForLoop const&)            -> void { };
-        virtual auto visit_post (WhileLoop const&)          -> void { };
-        virtual auto visit_post (DoWhileLoop const&)        -> void { };
-        virtual auto visit_post (FieldDefinition const&)    -> void { };
-        virtual auto visit_post (VariableDefinition const&) -> void { };
-        virtual auto visit_post (CompoundStatement const&)  -> void { };
     };
 }
 

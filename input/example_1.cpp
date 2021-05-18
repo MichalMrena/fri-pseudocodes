@@ -4,7 +4,7 @@ namespace aud
     class Kruh
     {
     public:
-        int foo();
+        int foo(int q);
         int boo();
 
     private:

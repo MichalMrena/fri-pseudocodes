@@ -73,8 +73,8 @@ namespace fri
         {
             c.fields_.emplace_back();
             auto& f = c.fields_.back();
-            f.name_ = field->getNameAsString();
-            f.type_ = field->getType().getAsString(); // TODO
+            f.var_.name_ = field->getNameAsString();
+            f.var_.type_ = field->getType().getAsString(); // TODO
         }
 
         for (auto const method : classDecl->methods())
@@ -83,7 +83,7 @@ namespace fri
             auto& m    = c.methods_.back();
             m.name_    = method->getNameAsString();
             m.retType_ = method->getReturnType().getAsString();
-            for (auto i = 0; i < method->getNumParams(); ++i)
+            for (auto i = 0u; i < method->getNumParams(); ++i)
             {
                 auto const param = method->getParamDecl(i); // TODO
                 m.params_.emplace_back();

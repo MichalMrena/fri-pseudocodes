@@ -49,6 +49,12 @@ namespace fri
         *ost_ << '\n';
     }
 
+    auto CodePrinter::blank_line
+        () -> void
+    {
+        this->end_line();
+    }
+
 // PseudocodePrinter definitions:
 
     PseudocodePrinter::PseudocodePrinter
@@ -60,15 +66,29 @@ namespace fri
     auto PseudocodePrinter::visit
         (Class const& c) -> void
     {
+        // Class header.
         this->begin_line();
         this->out() << "Trieda " << c.name_;
         this->end_line();
         this->inc_indent();
-    }
 
-    auto PseudocodePrinter::visit_post
-        (Class const&) -> void
-    {
+        // Visit methods.
+        for (auto const& m : c.methods_)
+        {
+            m.accept(*this);
+        }
+        if (not c.methods_.empty())
+        {
+            this->blank_line();
+        }
+
+        // Visit fields.
+        for (auto const& f : c.fields_)
+        {
+            f.accept(*this);
+        }
+
+        // Class end.
         this->dec_indent();
         this->begin_line();
         this->out() << "adeirt";
@@ -76,9 +96,25 @@ namespace fri
     }
 
     auto PseudocodePrinter::visit
-        (Method const&) -> void
+        (Method const& m) -> void
     {
+        this->begin_line();
+        this->out() << "Operácia " << m.name_ << "(";
 
+        auto it = std::begin(m.params_);
+        auto const end = std::end(m.params_);
+        while (it != end)
+        {
+            it->accept(*this);
+            ++it;
+            if (it != end)
+            {
+                this->out() << ", ";
+            }
+        }
+
+        this->out() << "): " << m.retType_;
+        this->end_line();
     }
 
     auto PseudocodePrinter::visit
@@ -96,14 +132,21 @@ namespace fri
     auto PseudocodePrinter::visit
         (DoWhileLoop const&) -> void
     {
+    }
 
+    auto PseudocodePrinter::visit
+        (VariableDefinition const& f) -> void
+    {
+        this->out() << f.name_ << ": " << f.type_;
+        // TODO initializer if present
     }
 
     auto PseudocodePrinter::visit
         (FieldDefinition const& f) -> void
     {
         this->begin_line();
-        this->out() << "Atribút " << f.name_ << " : " << f.type_;
+        this->out() << "Atribút ";
+        f.var_.accept(*this);
         this->end_line();
     }
 

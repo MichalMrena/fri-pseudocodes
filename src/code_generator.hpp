@@ -22,6 +22,7 @@ namespace fri
         auto dec_indent () -> void;
         auto begin_line () -> void;
         auto end_line   () -> void;
+        auto blank_line () -> void;
 
     private:
         std::size_t      indentStep_;
@@ -44,9 +45,8 @@ namespace fri
         auto visit (WhileLoop const& c)          -> void override;
         auto visit (DoWhileLoop const& c)        -> void override;
         auto visit (FieldDefinition const& c)    -> void override;
+        auto visit (VariableDefinition const& c) -> void override;
         auto visit (CompoundStatement const& c)  -> void override;
-
-        auto visit_post (Class const& c) -> void override;
     };
 }
 
