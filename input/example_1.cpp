@@ -1,18 +1,19 @@
 namespace aud
 {
     template<class T>
-    class List
+    class Kruh
     {
     public:
         int foo();
         int boo();
 
     private:
-        double member_;
+        double radius_;
+        int    weight_;
     };
 
     template<class T>
-    int List<T>::boo()
+    int Kruh<T>::boo()
     {
         int x = 1;
         int y = 2;

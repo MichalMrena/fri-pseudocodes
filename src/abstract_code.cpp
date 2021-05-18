@@ -37,11 +37,49 @@ namespace fri
         visitor.visit_post(*this);
     }
 
+    auto FieldDefinition::accept
+        (CodeVisitor& visitor) const -> void
+    {
+        visitor.visit(*this);
+        if (initializer_)
+        {
+            initializer_->accept(visitor);
+        }
+        visitor.visit_post(*this);
+    }
+
+    auto VariableDefinition::accept
+        (CodeVisitor& visitor) const -> void
+    {
+        visitor.visit(*this);
+        if (initializer_)
+        {
+            initializer_->accept(visitor);
+        }
+        visitor.visit_post(*this);
+    }
+
+    auto Method::accept
+        (CodeVisitor& visitor) const -> void
+    {
+        visitor.visit(*this);
+    }
+
     auto Class::accept
         (CodeVisitor& visitor) const -> void
     {
         visitor.visit(*this);
-        // TODO visit members
+
+        for (auto const& m : methods_)
+        {
+            m.accept(visitor);
+        }
+
+        for (auto const& f : fields_)
+        {
+            f.accept(visitor);
+        }
+
         visitor.visit_post(*this);
     }
 

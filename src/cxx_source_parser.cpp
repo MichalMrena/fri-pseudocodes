@@ -66,23 +66,32 @@ namespace fri
     auto ClassVisitor::VisitCXXRecordDecl
         (CXXRecordDecl* classDecl) -> bool
     {
-        // std::cout << "Found class: " << classDecl->getQualifiedNameAsString() << '\n';
-
-        // std::cout << "Methods:" << '\n';
-        // for (auto m : classDecl->methods())
-        // {
-        //     std::cout << "    " << m->getQualifiedNameAsString() << '\n';
-        //     std::cout << "        " << m->getBody() << '\n';
-        // }
-
-        // std::cout << "Fields:" << '\n';
-        // for (auto f : classDecl->fields())
-        // {
-        //     std::cout << "    " << f->getNameAsString() << '\n';
-        // }
-        // std::cout << "Done." << '\n';
         classes_->emplace_back();
-        classes_->back().name_ = classDecl->getNameAsString();
+        auto& c = classes_->back();
+
+        for (auto const field : classDecl->fields())
+        {
+            c.fields_.emplace_back();
+            auto& f = c.fields_.back();
+            f.name_ = field->getNameAsString();
+            f.type_ = field->getType().getAsString(); // TODO
+        }
+
+        for (auto const method : classDecl->methods())
+        {
+            c.methods_.emplace_back();
+            auto& m    = c.methods_.back();
+            m.name_    = method->getNameAsString();
+            m.retType_ = method->getReturnType().getAsString();
+            for (auto i = 0; i < method->getNumParams(); ++i)
+            {
+                auto const param = method->getParamDecl(i); // TODO
+                m.params_.emplace_back();
+                auto& p = m.params_.back();
+                p.name_ = param->getNameAsString();
+                p.type_ = param->getType().getAsString();
+            }
+        }
 
         return true;
     }

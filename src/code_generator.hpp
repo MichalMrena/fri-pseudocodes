@@ -4,6 +4,7 @@
 #include "abstract_code.hpp"
 
 #include <ostream>
+#include <string_view>
 
 namespace fri
 {
@@ -16,10 +17,17 @@ namespace fri
         CodePrinter(std::ostream& ost);
 
     protected:
-        auto out () -> std::ostream&;
+        auto out        () -> std::ostream&;
+        auto inc_indent () -> void;
+        auto dec_indent () -> void;
+        auto begin_line () -> void;
+        auto end_line   () -> void;
 
     private:
-        std::ostream* ost_;
+        std::size_t      indentStep_;
+        std::size_t      currentIndent_;
+        std::ostream*    ost_;
+        std::string_view spaces_;
     };
 
     /**
@@ -30,13 +38,15 @@ namespace fri
     public:
         PseudocodePrinter(std::ostream& ost);
 
-        virtual auto visit (Class const& c)  -> void;
-        virtual auto visit (Method const& c) -> void;
+        auto visit (Class const& c)              -> void override;
+        auto visit (Method const& c)             -> void override;
+        auto visit (ForLoop const& c)            -> void override;
+        auto visit (WhileLoop const& c)          -> void override;
+        auto visit (DoWhileLoop const& c)        -> void override;
+        auto visit (FieldDefinition const& c)    -> void override;
+        auto visit (CompoundStatement const& c)  -> void override;
 
-        virtual auto visit (ForLoop const& c)           -> void;
-        virtual auto visit (WhileLoop const& c)         -> void;
-        virtual auto visit (DoWhileLoop const& c)       -> void;
-        virtual auto visit (CompoundStatement const& c) -> void;
+        auto visit_post (Class const& c) -> void override;
     };
 }
 

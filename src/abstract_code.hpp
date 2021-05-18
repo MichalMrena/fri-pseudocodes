@@ -71,12 +71,42 @@ namespace fri
     };
 
     /**
+     *  @brief Base class for variable definitions.
+     */
+    struct VariableDefinitionBase : public Statement
+    {
+        std::string                 type_;
+        std::string                 name_;
+        std::unique_ptr<Expression> initializer_ {};
+    };
+
+    /**
+     *  @brief Class field definition.
+     */
+    struct FieldDefinition : public VariableDefinitionBase
+    {
+        auto accept (CodeVisitor& visitor) const -> void override;
+    };
+
+    /**
+     *  @brief Variable definition.
+     */
+    struct VariableDefinition : public VariableDefinitionBase
+    {
+        auto accept (CodeVisitor& visitor) const -> void override;
+    };
+
+    /**
      *  @brief Method definition.
      */
     struct Method
     {
-        std::string       name_;
-        CompoundStatement body_;
+        std::string                     name_;
+        std::string                     retType_;
+        std::vector<VariableDefinition> params_;
+        CompoundStatement               body_;
+
+        auto accept (CodeVisitor& visitor) const -> void;
     };
 
     /**
@@ -84,9 +114,9 @@ namespace fri
      */
     struct Class
     {
-        std::string           name_;
-        // std::vector<Variable> fields_;
-        std::vector<Method>   methods_;
+        std::string                  name_;
+        std::vector<Method>          methods_;
+        std::vector<FieldDefinition> fields_;
 
         auto accept (CodeVisitor& visitor) const -> void;
     };
@@ -112,20 +142,23 @@ namespace fri
     public:
         virtual ~CodeVisitor() = default;
 
-        virtual auto visit (Class const& c)  -> void = 0;
-        virtual auto visit (Method const& c) -> void = 0;
+        virtual auto visit (Class const& c)              -> void = 0;
+        virtual auto visit (Method const& c)             -> void = 0;
+        virtual auto visit (ForLoop const& c)            -> void = 0;
+        virtual auto visit (WhileLoop const& c)          -> void = 0;
+        virtual auto visit (DoWhileLoop const& c)        -> void = 0;
+        virtual auto visit (FieldDefinition const& c)    -> void = 0;
+        virtual auto visit (VariableDefinition const& c) -> void = 0;
+        virtual auto visit (CompoundStatement const& c)  -> void = 0;
 
-        virtual auto visit (ForLoop const& c)           -> void = 0;
-        virtual auto visit (WhileLoop const& c)         -> void = 0;
-        virtual auto visit (DoWhileLoop const& c)       -> void = 0;
-        virtual auto visit (CompoundStatement const& c) -> void = 0;
-
-        virtual auto visit_post (Class const&) -> void { };
-
-        virtual auto visit_post (ForLoop const&)           -> void { };
-        virtual auto visit_post (WhileLoop const&)         -> void { };
-        virtual auto visit_post (DoWhileLoop const&)       -> void { };
-        virtual auto visit_post (CompoundStatement const&) -> void { };
+        virtual auto visit_post (Class const&)              -> void { };
+        virtual auto visit_post (Method const&)             -> void { };
+        virtual auto visit_post (ForLoop const&)            -> void { };
+        virtual auto visit_post (WhileLoop const&)          -> void { };
+        virtual auto visit_post (DoWhileLoop const&)        -> void { };
+        virtual auto visit_post (FieldDefinition const&)    -> void { };
+        virtual auto visit_post (VariableDefinition const&) -> void { };
+        virtual auto visit_post (CompoundStatement const&)  -> void { };
     };
 }
 
