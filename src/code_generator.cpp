@@ -64,6 +64,21 @@ namespace fri
     }
 
     auto PseudocodePrinter::visit
+        (IntLiteral const&) -> void
+    {
+    }
+
+    auto PseudocodePrinter::visit
+        (FloatLiteral const&) -> void
+    {
+    }
+
+    auto PseudocodePrinter::visit
+        (BinaryOperator const&) -> void
+    {
+    }
+
+    auto PseudocodePrinter::visit
         (Class const& c) -> void
     {
         // Class header.

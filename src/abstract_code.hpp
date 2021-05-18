@@ -4,123 +4,134 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <variant>
+#include <cstdint>
 
 namespace fri
 {
     class CodeVisitor;
 
-    template<class Derived>
-    struct Visitable
-    {
-
-    };
-
     /**
-     *  @brief Base class for expressions.
+     *  @brief Common base class for all expressions.
      */
     struct Expression
     {
-        virtual ~Expression() = default;
+        virtual ~Expression () = default;
         virtual auto accept (CodeVisitor& visitor) const -> void = 0;
     };
 
     /**
-     *  @brief Base class for statements.
+     *  @brief Common base class for all statements.
      */
     struct Statement
     {
-        virtual ~Statement() = default;
+        virtual ~Statement () = default;
         virtual auto accept (CodeVisitor& visitor) const -> void = 0;
+    };
+
+    /**
+     *  @brief Class template that implements accept for all derived classes.
+     */
+    template<class VirtualBase, class Derived>
+    struct Visitable : public VirtualBase
+    {
+        auto accept (CodeVisitor& visitor) const -> void override;
+    };
+
+    /**
+     *  @brief Integral literal.
+     */
+    struct IntLiteral : public Visitable<Expression, IntLiteral>
+    {
+        std::int64_t num_;
+    };
+
+    /**
+     *  @brief Floating point literal.
+     */
+    struct FloatLiteral : public Visitable<Expression, FloatLiteral>
+    {
+        double num_;
+    };
+
+    /**
+     *  @brief Binary operator.
+     */
+    struct BinaryOperator : public Visitable<Expression, BinaryOperator>
+    {
+        char                        op_;
+        std::unique_ptr<Expression> lhs_;
+        std::unique_ptr<Expression> rhs_;
     };
 
     /**
      *  @brief Compound statement (block of code).
      */
-    struct CompoundStatement : public Statement
+    struct CompoundStatement : public Visitable<Statement, CompoundStatement>
     {
         std::vector<std::unique_ptr<Statement>> statements_;
-
-        auto accept (CodeVisitor& visitor) const -> void override;
-    };
-
-    /**
-     *  @brief Base class for loops.
-     */
-    struct Loop : public Statement
-    {
-        CompoundStatement body_;
     };
 
     /**
      *  @brief For loop.
      */
-    struct ForLoop : public Loop
+    struct ForLoop : public Visitable<Statement, ForLoop>
     {
-        auto accept (CodeVisitor& visitor) const -> void override;
+        CompoundStatement body_;
     };
 
     /**
      *  @brief While loop.
      */
-    struct WhileLoop : public Loop
+    struct WhileLoop : public Visitable<Statement, WhileLoop>
     {
-        auto accept (CodeVisitor& visitor) const -> void override;
+        CompoundStatement body_;
     };
 
     /**
      *  @brief Do while loop.
      */
-    struct DoWhileLoop : public Loop
+    struct DoWhileLoop : public Visitable<Statement, DoWhileLoop>
     {
-        auto accept (CodeVisitor& visitor) const -> void override;
+        CompoundStatement body_;
     };
 
     /**
      *  @brief Variable definition.
      */
-    struct VariableDefinition : public Statement
+    struct VariableDefinition : public Visitable<Statement, VariableDefinition>
     {
         std::string                 type_;
         std::string                 name_;
         std::unique_ptr<Expression> initializer_ {};
-
-        auto accept (CodeVisitor& visitor) const -> void override;
     };
 
     /**
      *  @brief Class field definition.
      */
-    struct FieldDefinition : public Statement
+    struct FieldDefinition : public Visitable<Statement, FieldDefinition>
     {
         VariableDefinition var_;
-
-        auto accept (CodeVisitor& visitor) const -> void override;
     };
 
     /**
      *  @brief Method definition.
      */
-    struct Method
+    struct Method : public Visitable<Statement, Method>
     {
         std::string                     name_;
         std::string                     retType_;
         std::vector<VariableDefinition> params_;
         CompoundStatement               body_;
-
-        auto accept (CodeVisitor& visitor) const -> void;
     };
 
     /**
      *  @brief Class definition.
      */
-    struct Class
+    struct Class : public Visitable<Statement, Class>
     {
         std::string                  name_;
         std::vector<Method>          methods_;
         std::vector<FieldDefinition> fields_;
-
-        auto accept (CodeVisitor& visitor) const -> void;
     };
 
     /**
@@ -144,15 +155,26 @@ namespace fri
     public:
         virtual ~CodeVisitor() = default;
 
-        virtual auto visit (Class const& c)              -> void = 0;
-        virtual auto visit (Method const& c)             -> void = 0;
-        virtual auto visit (ForLoop const& c)            -> void = 0;
-        virtual auto visit (WhileLoop const& c)          -> void = 0;
-        virtual auto visit (DoWhileLoop const& c)        -> void = 0;
-        virtual auto visit (FieldDefinition const& c)    -> void = 0;
-        virtual auto visit (VariableDefinition const& c) -> void = 0;
-        virtual auto visit (CompoundStatement const& c)  -> void = 0;
+        virtual auto visit (IntLiteral const&)     -> void = 0;
+        virtual auto visit (FloatLiteral const&)   -> void = 0;
+        virtual auto visit (BinaryOperator const&) -> void = 0;
+
+        virtual auto visit (Class const&)              -> void = 0;
+        virtual auto visit (Method const&)             -> void = 0;
+        virtual auto visit (ForLoop const&)            -> void = 0;
+        virtual auto visit (WhileLoop const&)          -> void = 0;
+        virtual auto visit (DoWhileLoop const&)        -> void = 0;
+        virtual auto visit (FieldDefinition const&)    -> void = 0;
+        virtual auto visit (VariableDefinition const&) -> void = 0;
+        virtual auto visit (CompoundStatement const&)  -> void = 0;
     };
+
+    template<class VirtualBase, class Derived>
+    auto Visitable<VirtualBase, Derived>::accept
+        (CodeVisitor& visitor) const -> void
+    {
+        visitor.visit(static_cast<Derived const&>(*this));
+    }
 }
 
 #endif

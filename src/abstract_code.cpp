@@ -2,54 +2,6 @@
 
 namespace fri
 {
-    auto CompoundStatement::accept
-        (CodeVisitor& visitor) const -> void
-    {
-        visitor.visit(*this);
-    }
-
-    auto ForLoop::accept
-        (CodeVisitor& visitor) const -> void
-    {
-        visitor.visit(*this);
-    }
-
-    auto WhileLoop::accept
-        (CodeVisitor& visitor) const -> void
-    {
-        visitor.visit(*this);
-    }
-
-    auto DoWhileLoop::accept
-        (CodeVisitor& visitor) const -> void
-    {
-        visitor.visit(*this);
-    }
-
-    auto VariableDefinition::accept
-        (CodeVisitor& visitor) const -> void
-    {
-        visitor.visit(*this);
-    }
-
-    auto FieldDefinition::accept
-        (CodeVisitor& visitor) const -> void
-    {
-        visitor.visit(*this);
-    }
-
-    auto Method::accept
-        (CodeVisitor& visitor) const -> void
-    {
-        visitor.visit(*this);
-    }
-
-    auto Class::accept
-        (CodeVisitor& visitor) const -> void
-    {
-        visitor.visit(*this);
-    }
-
 // TranslationUnit definitions:
 
     TranslationUnit::TranslationUnit

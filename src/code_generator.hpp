@@ -37,7 +37,11 @@ namespace fri
     class PseudocodePrinter : public CodePrinter, public CodeVisitor
     {
     public:
-        PseudocodePrinter(std::ostream& ost);
+        PseudocodePrinter (std::ostream& ost);
+
+        auto visit (IntLiteral const&)     -> void override;
+        auto visit (FloatLiteral const&)   -> void override;
+        auto visit (BinaryOperator const&) -> void override;
 
         auto visit (Class const& c)              -> void override;
         auto visit (Method const& c)             -> void override;
