@@ -46,6 +46,6 @@ int main(int argc, char **argv)
 
     for (auto const& c : classes)
     {
-        c.accept(printer);
+        c->accept(printer);
     }
 }

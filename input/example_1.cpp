@@ -1,5 +1,7 @@
 namespace aud
 {
+    class Dummy;
+
     template<class T>
     class Kruh
     {
@@ -10,6 +12,16 @@ namespace aud
     private:
         double radius_;
         int    weight_;
+    };
+
+    struct Base
+    {
+
+    };
+
+    class Dummy : public Base
+    {
+        int q = 10;
     };
 
     template<class T>

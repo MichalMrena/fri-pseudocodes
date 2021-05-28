@@ -79,6 +79,16 @@ namespace fri
     }
 
     auto PseudocodePrinter::visit
+        (ValueType const&) -> void
+    {
+    }
+
+    auto PseudocodePrinter::visit
+        (Indirection const&) -> void
+    {
+    }
+
+    auto PseudocodePrinter::visit
         (Class const& c) -> void
     {
         // Class header.
@@ -107,6 +117,7 @@ namespace fri
         this->dec_indent();
         this->begin_line();
         this->out() << "adeirt";
+        this->end_line();
         this->end_line();
     }
 

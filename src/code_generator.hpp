@@ -43,6 +43,9 @@ namespace fri
         auto visit (FloatLiteral const&)   -> void override;
         auto visit (BinaryOperator const&) -> void override;
 
+        auto visit (ValueType const&)   -> void override;
+        auto visit (Indirection const&) -> void override;
+
         auto visit (Class const& c)              -> void override;
         auto visit (Method const& c)             -> void override;
         auto visit (ForLoop const& c)            -> void override;

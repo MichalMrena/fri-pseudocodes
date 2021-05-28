@@ -29,12 +29,41 @@ namespace fri
     };
 
     /**
+     *  @brief Base class for types.
+     */
+    struct Type
+    {
+        virtual ~Type () = default;
+        virtual auto accept (CodeVisitor& visitor) const -> void = 0;
+    };
+
+    /**
      *  @brief Class template that implements accept for all derived classes.
      */
     template<class VirtualBase, class Derived>
     struct Visitable : public VirtualBase
     {
         auto accept (CodeVisitor& visitor) const -> void override;
+    };
+
+    /**
+     *  @brief Primitive type or class.
+     */
+    struct ValueType : public Visitable<Type, ValueType>
+    {
+        std::string name_;
+
+        ValueType (std::string name);
+    };
+
+    /**
+     *  @brief Pointer or reference.
+     */
+    struct Indirection : public Visitable<Type, Indirection>
+    {
+        std::unique_ptr<Type> pointee_ {};
+
+        Indirection (std::unique_ptr<Type> pointee);
     };
 
     /**
@@ -124,15 +153,23 @@ namespace fri
         CompoundStatement               body_;
     };
 
+    auto is_pure_virtual (Method const&) -> bool;
+
     /**
      *  @brief Class definition.
      */
     struct Class : public Visitable<Statement, Class>
     {
+        std::string                  qualName_;
         std::string                  name_;
         std::vector<Method>          methods_;
         std::vector<FieldDefinition> fields_;
+        std::vector<Class*>          bases_;
+
+        Class (std::string qualName);
     };
+
+    auto is_interface (Class const&) -> bool;
 
     /**
      *  @brief Code from a translation unit. Just classes for now.
@@ -140,11 +177,11 @@ namespace fri
     class TranslationUnit
     {
     public:
-        TranslationUnit (std::vector<Class> classes);
-        auto get_classes () const -> std::vector<Class> const&;
+        TranslationUnit (std::vector<std::unique_ptr<Class>> classes);
+        auto get_classes () const -> std::vector<std::unique_ptr<Class>> const&;
 
     private:
-        std::vector<Class> classes_;
+        std::vector<std::unique_ptr<Class>> classes_;
     };
 
     /**
@@ -153,11 +190,14 @@ namespace fri
     class CodeVisitor
     {
     public:
-        virtual ~CodeVisitor() = default;
+        virtual ~CodeVisitor () = default;
 
         virtual auto visit (IntLiteral const&)     -> void = 0;
         virtual auto visit (FloatLiteral const&)   -> void = 0;
         virtual auto visit (BinaryOperator const&) -> void = 0;
+
+        virtual auto visit (ValueType const&)   -> void = 0;
+        virtual auto visit (Indirection const&) -> void = 0;
 
         virtual auto visit (Class const&)              -> void = 0;
         virtual auto visit (Method const&)             -> void = 0;
