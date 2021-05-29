@@ -94,6 +94,23 @@ namespace fri
         // Class header.
         this->begin_line();
         this->out() << "Trieda " << c.name_;
+
+        if (not c.bases_.empty())
+        {
+            this->out() << " rozširuje ";
+            auto it = std::begin(c.bases_);
+            auto const end = std::end(c.bases_);
+            while (it != end)
+            {
+                this->out() << (*it)->name_;
+                ++it;
+                if (it != end)
+                {
+                    this->out() << ", ";
+                }
+            }
+        }
+
         this->end_line();
         this->inc_indent();
 

@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <cstdint>
+#include <optional>
 
 namespace fri
 {
@@ -147,10 +148,10 @@ namespace fri
      */
     struct Method : public Visitable<Statement, Method>
     {
-        std::string                     name_;
-        std::string                     retType_;
-        std::vector<VariableDefinition> params_;
-        CompoundStatement               body_;
+        std::string                      name_;
+        std::string                      retType_;
+        std::vector<VariableDefinition>  params_;
+        std::optional<CompoundStatement> body_ {};
     };
 
     auto is_pure_virtual (Method const&) -> bool;

@@ -18,15 +18,19 @@ namespace fri
     class ClassVisitor : public clang::RecursiveASTVisitor<ClassVisitor>
     {
     public:
-        explicit ClassVisitor (clang::ASTContext& context, std::vector<std::unique_ptr<Class>>& classes);
+        explicit ClassVisitor ( clang::ASTContext& context
+                              , std::vector<std::unique_ptr<Class>>& classes
+                              , std::vector<std::string> const& namespaces );
 
         auto VisitCXXRecordDecl (clang::CXXRecordDecl* classDecl) -> bool;
 
     private:
-        auto get_class (std::string const&) -> Class&;
+        auto get_class    (std::string const&) -> Class&;
+        auto should_visit (std::string_view qalName) const -> bool;
 
     private:
         std::vector<std::unique_ptr<Class>>* classes_;
+        std::vector<std::string> const*      namespaces_;
         clang::ASTContext*                   context_;
     };
 
@@ -36,7 +40,9 @@ namespace fri
     class FindClassConsumer : public clang::ASTConsumer
     {
     public:
-        explicit FindClassConsumer (clang::ASTContext& context, std::vector<std::unique_ptr<Class>>& classes);
+        explicit FindClassConsumer ( clang::ASTContext& context
+                                   , std::vector<std::unique_ptr<Class>>& classes
+                                   , std::vector<std::string> const& namespaces );
         virtual auto HandleTranslationUnit (clang::ASTContext& context) -> void;
 
     private:
@@ -49,11 +55,12 @@ namespace fri
     class FindClassAction : public clang::ASTFrontendAction
     {
     public:
-        explicit FindClassAction (std::vector<std::unique_ptr<Class>>& classes);
+        explicit FindClassAction (std::vector<std::unique_ptr<Class>>& classes, std::vector<std::string> const& namespaces);
         virtual auto CreateASTConsumer (clang::CompilerInstance& compiler, llvm::StringRef) -> std::unique_ptr<clang::ASTConsumer>;
 
     private:
         std::vector<std::unique_ptr<Class>>* classes_;
+        std::vector<std::string> const*      namespaces_;
     };
 
 // Utility functions:
@@ -73,23 +80,32 @@ namespace fri
         }
         else
         {
-            return std::make_unique<ValueType>("Not implemented.");
+            return std::make_unique<ValueType>("NOT IMPLEMENTED");
         }
     }
 
 // ClassVisitor definitions:
 
     ClassVisitor::ClassVisitor
-        (clang::ASTContext& context, std::vector<std::unique_ptr<Class>>& classes) :
-        classes_ (&classes),
-        context_ (&context)
+        ( clang::ASTContext& context
+        , std::vector<std::unique_ptr<Class>>& classes
+        , std::vector<std::string> const& namespaces ) :
+        classes_    (&classes),
+        namespaces_ (&namespaces),
+        context_    (&context)
     {
     }
 
     auto ClassVisitor::VisitCXXRecordDecl
         (clang::CXXRecordDecl* classDecl) -> bool
     {
-        auto& c = this->get_class(classDecl->getQualifiedNameAsString());
+        auto const qualName = classDecl->getQualifiedNameAsString();
+        if (not this->should_visit(qualName))
+        {
+            return true;
+        }
+
+        auto& c = this->get_class(qualName);
         c.name_ = classDecl->getNameAsString();
 
         for (auto const base : classDecl->bases())
@@ -97,31 +113,39 @@ namespace fri
             auto const bt = base.getType();
             if (bt->isRecordType())
             {
-                std::cout << "    base is record type" << '\n'; // TODO
+                auto const baseDecl = bt->getAs<clang::RecordType>()->getAsCXXRecordDecl();
+                c.bases_.emplace_back(&this->get_class(baseDecl->getQualifiedNameAsString()));
             }
         }
 
         for (auto const field : classDecl->fields())
         {
-            c.fields_.emplace_back();
-            auto& f = c.fields_.back();
+            auto& f = c.fields_.emplace_back();
             f.var_.name_ = field->getNameAsString();
             f.var_.type_ = field->getType().getAsString(); // TODO
         }
 
         for (auto const method : classDecl->methods())
         {
-            c.methods_.emplace_back();
-            auto& m    = c.methods_.back();
+            auto& m    = c.methods_.emplace_back();
             m.name_    = method->getNameAsString();
             m.retType_ = method->getReturnType().getAsString();
+
             for (auto i = 0u; i < method->getNumParams(); ++i)
             {
                 auto const param = method->getParamDecl(i); // TODO
-                m.params_.emplace_back();
-                auto& p = m.params_.back();
+                auto& p = m.params_.emplace_back();
                 p.name_ = param->getNameAsString();
                 p.type_ = param->getType().getAsString();
+            }
+
+            if (method->isPure())
+            {
+                m.body_ = std::nullopt;
+            }
+            else
+            {
+                m.body_ = CompoundStatement(); // TODO parse m->body(), show notice if body is null
             }
         }
 
@@ -144,11 +168,22 @@ namespace fri
         return *classes_->emplace_back(std::make_unique<Class>(name));
     }
 
+    auto ClassVisitor::should_visit
+        (std::string_view qualName) const -> bool
+    {
+        return std::any_of(std::begin(*namespaces_), std::end(*namespaces_), [qualName](auto const& n)
+        {
+            return qualName.starts_with(n);
+        });
+    }
+
 // FindClassConsumer definitions:
 
     FindClassConsumer::FindClassConsumer
-        (clang::ASTContext& context, std::vector<std::unique_ptr<Class>>& classes) :
-        visitor_ (context, classes)
+        ( clang::ASTContext& context
+        , std::vector<std::unique_ptr<Class>>& classes
+        , std::vector<std::string> const& namespaces ) :
+        visitor_ (context, classes, namespaces)
     {
     }
 
@@ -161,15 +196,16 @@ namespace fri
 // FindClassAction definitions:
 
     FindClassAction::FindClassAction
-        (std::vector<std::unique_ptr<Class>>& classes) :
-        classes_ (&classes)
+        (std::vector<std::unique_ptr<Class>>& classes, std::vector<std::string> const& namespaces) :
+        classes_    (&classes),
+        namespaces_ (&namespaces)
     {
     }
 
     auto FindClassAction::CreateASTConsumer
         (clang::CompilerInstance& compiler, llvm::StringRef) -> std::unique_ptr<clang::ASTConsumer>
     {
-        return std::make_unique<FindClassConsumer>(compiler.getASTContext(), *classes_);
+        return std::make_unique<FindClassConsumer>(compiler.getASTContext(), *classes_, *namespaces_);
     }
 
 // extract_code definition:
@@ -177,8 +213,10 @@ namespace fri
     auto extract_code
         (std::string const& code) -> TranslationUnit
     {
-        auto cs = std::vector<std::unique_ptr<Class>>();
-        clang::tooling::runToolOnCode(std::make_unique<FindClassAction>(cs), code);
+        auto cs   = std::vector<std::unique_ptr<Class>>();
+        auto args = std::vector<std::string> {};
+        auto ns   = std::vector<std::string> {"mm", "adt", "amt"};
+        clang::tooling::runToolOnCodeWithArgs(std::make_unique<FindClassAction>(cs, ns), code, args);
         return TranslationUnit(std::move(cs));
     }
 }

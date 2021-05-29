@@ -17,6 +17,8 @@ include_directories(
 add_executable(generate-pseudocode ./src/main.cpp ./src/abstract_code.cpp ./src/code_generator.cpp ./src/cxx_source_parser.cpp)
 
 target_compile_options(generate-pseudocode PRIVATE -std=c++20 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -O3)
+# target_compile_options(generate-pseudocode PRIVATE -std=c++20 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -O3 -stdlib=libc++)
+# target_link_options(generate-pseudocode PRIVATE -lc++abi)
 
 target_link_libraries(generate-pseudocode
   ${LibClangTooling_LIBRARIES}

@@ -1,9 +1,14 @@
-namespace aud
+#include <stddef.h>
+
+namespace mm
 {
-    class Dummy;
+    class Tvar
+    {
+
+    };
 
     template<class T>
-    class Kruh
+    class Kruh : public Tvar
     {
     public:
         int foo(int q);
@@ -12,16 +17,6 @@ namespace aud
     private:
         double radius_;
         int    weight_;
-    };
-
-    struct Base
-    {
-
-    };
-
-    class Dummy : public Base
-    {
-        int q = 10;
     };
 
     template<class T>

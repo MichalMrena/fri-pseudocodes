@@ -24,7 +24,7 @@ namespace fri
 
     auto is_pure_virtual (Method const& m) -> bool
     {
-        return m.body_.statements_.empty();
+        return m.body_.has_value();
     }
 
 // Class definitions:
