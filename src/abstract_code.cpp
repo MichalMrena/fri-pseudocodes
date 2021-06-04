@@ -4,9 +4,17 @@
 
 namespace fri
 {
-// ValueType definitions:
+// PrimType definition:
 
-    ValueType::ValueType
+    PrimType::PrimType
+        (std::string name) :
+        name_ (std::move(name))
+    {
+    }
+
+// CustomType definition:
+
+    CustomType::CustomType
         (std::string name) :
         name_ (std::move(name))
     {
@@ -17,6 +25,14 @@ namespace fri
     Indirection::Indirection
         (std::unique_ptr<Type> pointee) :
         pointee_ (std::move(pointee))
+    {
+    }
+
+// String literal definition:
+
+    StringLiteral::StringLiteral
+        (std::string str) :
+        str_ (std::move(str))
     {
     }
 

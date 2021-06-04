@@ -40,12 +40,36 @@ int main(int argc, char **argv)
 
     // Analyze code and generate pseudocode.
     auto& ost               = static_cast<std::ostream&>(ofstOpt ? ofstOpt.value() : std::cout);
-    auto printer            = fri::PseudocodePrinter(ost);
+    auto colors             = fri::CodeColorInfo();
+    auto printer            = fri::ConsoleCodePrinter();
+    auto generator          = fri::PseudocodeGenerator(printer, colors);
     auto const abstractCode = fri::extract_code(code);
     auto const& classes     = abstractCode.get_classes();
 
+    std::cout << "---------------------------------------------" << '\n';
     for (auto const& c : classes)
     {
-        c->accept(printer);
+        c->accept(generator);
     }
+
+    // std::cout << "\n";
+    // std::cout << "\x1B[90m Text"       << '\n';
+    // std::cout << "\x1B[91m Text"       << '\n';
+    // std::cout << "\x1B[92m Text"       << '\n';
+    // std::cout << "\x1B[93m Text"       << '\n';
+    // std::cout << "\x1B[94m Text"       << '\n';
+    // std::cout << "\x1B[95m Text"       << '\n';
+    // std::cout << "\x1B[96m Text"       << '\n';
+    // std::cout << "\x1B[97m Text"       << '\n';
+    // std::cout << '\n';
+    // std::cout << "\x1B[3;42;30m Text  \x1B[0m"  << '\n';
+    // std::cout << "\x1B[3;43;30m Text  \x1B[0m"  << '\n';
+    // std::cout << "\x1B[3;44;30m Text  \x1B[0m"  << '\n';
+    // std::cout << "\x1B[3;104;30m Text \x1B[0m" << '\n';
+    // std::cout << "\x1B[3;100;30m Text \x1B[0m" << '\n';
+    // std::cout << "\x1B[3;47;35m Text  \x1B[0m"  << '\n';
+    // std::cout << "\x1B[2;47;35m Text  \x1B[0m"  << '\n';
+    // std::cout << "\x1B[1;47;35m Text  \x1B[0m"  << '\n';
+
+    // \x1B[0m reset all
 }

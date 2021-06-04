@@ -48,13 +48,23 @@ namespace fri
     };
 
     /**
-     *  @brief Primitive type or class.
+     *  @brief Primitive type.
      */
-    struct ValueType : public Visitable<Type, ValueType>
+    struct PrimType : public Visitable<Type, PrimType>
     {
         std::string name_;
 
-        ValueType (std::string name);
+        PrimType (std::string name);
+    };
+
+    /**
+     *  @brief Custom type.
+     */
+    struct CustomType : public Visitable<Type, CustomType>
+    {
+        std::string name_;
+
+        CustomType (std::string name);
     };
 
     /**
@@ -81,6 +91,16 @@ namespace fri
     struct FloatLiteral : public Visitable<Expression, FloatLiteral>
     {
         double num_;
+    };
+
+    /**
+     *  @brief String literal.
+     */
+    struct StringLiteral : public Visitable<Expression, StringLiteral>
+    {
+        std::string str_;
+
+        StringLiteral (std::string);
     };
 
     /**
@@ -130,7 +150,7 @@ namespace fri
      */
     struct VariableDefinition : public Visitable<Statement, VariableDefinition>
     {
-        std::string                 type_;
+        std::unique_ptr<Type>       type_;
         std::string                 name_;
         std::unique_ptr<Expression> initializer_ {};
     };
@@ -149,7 +169,7 @@ namespace fri
     struct Method : public Visitable<Statement, Method>
     {
         std::string                      name_;
-        std::string                      retType_;
+        std::unique_ptr<Type>            retType_;
         std::vector<VariableDefinition>  params_;
         std::optional<CompoundStatement> body_ {};
     };
@@ -195,9 +215,11 @@ namespace fri
 
         virtual auto visit (IntLiteral const&)     -> void = 0;
         virtual auto visit (FloatLiteral const&)   -> void = 0;
+        virtual auto visit (StringLiteral const&)  -> void = 0;
         virtual auto visit (BinaryOperator const&) -> void = 0;
 
-        virtual auto visit (ValueType const&)   -> void = 0;
+        virtual auto visit (PrimType const&)    -> void = 0;
+        virtual auto visit (CustomType const&)  -> void = 0;
         virtual auto visit (Indirection const&) -> void = 0;
 
         virtual auto visit (Class const&)              -> void = 0;

@@ -13,6 +13,21 @@
 namespace fri
 {
     /**
+     *  @brief Visits statements in clang AST.
+     */
+    class StatementVisitor : public clang::RecursiveASTVisitor<StatementVisitor>
+    {
+    public:
+        auto release_result () -> std::unique_ptr<Statement>;
+
+        auto VisitCompoundStmt (clang::CompoundStmt*) -> bool;
+        auto VisitVarDecl      (clang::VarDecl*)      -> bool;
+
+    private:
+        std::unique_ptr<Statement> result_ {};
+    };
+
+    /**
      *  @brief Visits definitions of classes in clang AST.
      */
     class ClassVisitor : public clang::RecursiveASTVisitor<ClassVisitor>
@@ -32,6 +47,7 @@ namespace fri
         std::vector<std::unique_ptr<Class>>* classes_;
         std::vector<std::string> const*      namespaces_;
         clang::ASTContext*                   context_;
+        StatementVisitor                     statementer_;
     };
 
     /**
@@ -78,10 +94,63 @@ namespace fri
             auto const ref = t->getAs<clang::ReferenceType>();
             return std::make_unique<Indirection>(extract_type(ref->getPointeeType()));
         }
+        else if (t->isBuiltinType())
+        {
+            return std::make_unique<PrimType>(qt.getAsString());
+        }
+        else if (t->isRecordType())
+        {
+            auto const r = t->getAs<clang::RecordType>();
+            return std::make_unique<CustomType>(r->getAsRecordDecl()->getName().str());
+        }
+        else if (t->isTemplateTypeParmType())
+        {
+            return std::make_unique<CustomType>(qt.getAsString());
+        }
         else
         {
-            return std::make_unique<ValueType>("NOT IMPLEMENTED");
+            return std::make_unique<PrimType>("<unknown type>");
         }
+    }
+
+// StatementVisitor definitions:
+
+    auto StatementVisitor::release_result
+        () -> std::unique_ptr<Statement>
+    {
+        return std::unique_ptr<Statement>(std::move(result_));
+    }
+
+    auto StatementVisitor::VisitCompoundStmt
+        (clang::CompoundStmt* compound) -> bool
+    {
+        auto result = std::make_unique<CompoundStatement>();
+
+        for (auto const s : compound->body())
+        {
+            this->TraverseStmt(s);
+            result->statements_.emplace_back(this->release_result());
+        }
+
+        result_ = std::move(result);
+        return false;
+    }
+
+    auto StatementVisitor::VisitVarDecl
+        (clang::VarDecl* decl) -> bool
+    {
+        auto def = std::make_unique<VariableDefinition>();
+
+        def->type_ = extract_type(decl->getType());
+        def->name_ = decl->getName().str();
+        auto const init = decl->getInit();
+        if (init)
+        {
+            def->initializer_ = std::make_unique<StringLiteral>("<unknown expression>"); // TODO
+        }
+
+        result_ = std::move(def);
+        return false;
     }
 
 // ClassVisitor definitions:
@@ -122,21 +191,21 @@ namespace fri
         {
             auto& f = c.fields_.emplace_back();
             f.var_.name_ = field->getNameAsString();
-            f.var_.type_ = field->getType().getAsString(); // TODO
+            f.var_.type_ = extract_type(field->getType());
         }
 
         for (auto const method : classDecl->methods())
         {
             auto& m    = c.methods_.emplace_back();
             m.name_    = method->getNameAsString();
-            m.retType_ = method->getReturnType().getAsString();
+            m.retType_ = extract_type(method->getReturnType());
 
             for (auto i = 0u; i < method->getNumParams(); ++i)
             {
-                auto const param = method->getParamDecl(i); // TODO
+                auto const param = method->getParamDecl(i);
                 auto& p = m.params_.emplace_back();
                 p.name_ = param->getNameAsString();
-                p.type_ = param->getType().getAsString();
+                p.type_ = extract_type(param->getType());
             }
 
             if (method->isPure())
@@ -145,7 +214,18 @@ namespace fri
             }
             else
             {
-                m.body_ = CompoundStatement(); // TODO parse m->body(), show notice if body is null
+                auto const body = method->getBody();
+                if (body)
+                {
+                    statementer_.TraverseStmt(body);
+                    m.body_ = CompoundStatement();
+                    // if is compound
+                    method->hasBody();
+                }
+                else
+                {
+                    // TODO not good
+                }
             }
         }
 

@@ -1,34 +1,28 @@
 #include "code_generator.hpp"
 
 #include <iostream>
+#include <algorithm>
 
 namespace fri
 {
-// CodePrinter definitions:
+// ConsoleCodePrinter definitions:
 
-    CodePrinter::CodePrinter
-        (std::ostream& ost) :
+    ConsoleCodePrinter::ConsoleCodePrinter
+        () :
         indentStep_    (4),
         currentIndent_ (0),
-        ost_           (&ost),
-        spaces_        ("                            ")
+        spaces_        ("                               ")
     {
     }
 
-    auto CodePrinter::out
-        () -> std::ostream&
-    {
-        return *ost_;
-    }
-
-    auto CodePrinter::inc_indent
+    auto ConsoleCodePrinter::inc_indent
         () -> void
     {
 
         ++currentIndent_;
     }
 
-    auto CodePrinter::dec_indent
+    auto ConsoleCodePrinter::dec_indent
         () -> void
     {
          if (currentIndent_ > 0)
@@ -37,82 +31,122 @@ namespace fri
          }
     }
 
-    auto CodePrinter::begin_line
+    auto ConsoleCodePrinter::begin_line
         () -> void
     {
-        *ost_ << spaces_.substr(0, currentIndent_ * indentStep_);
+        auto const sc = std::min(spaces_.size(), currentIndent_ * indentStep_);
+        std::cout << spaces_.substr(0, sc);
     }
 
-    auto CodePrinter::end_line
+    auto ConsoleCodePrinter::end_line
         () -> void
     {
-        *ost_ << '\n';
+        std::cout << '\n';
     }
 
-    auto CodePrinter::blank_line
+    auto ConsoleCodePrinter::blank_line
         () -> void
     {
         this->end_line();
     }
 
-// PseudocodePrinter definitions:
+    auto ConsoleCodePrinter::set_color
+        (Color const&) -> void
+    {
+        // TODO
+    }
 
-    PseudocodePrinter::PseudocodePrinter
-        (std::ostream& ost) :
-        CodePrinter(ost)
+    auto ConsoleCodePrinter::out
+        (std::string_view s) -> ConsoleCodePrinter&
+    {
+        std::cout << s;
+        return *this;
+    }
+
+// PseudocodeGenerator definitions:
+
+    PseudocodeGenerator::PseudocodeGenerator
+        (ICodePrinter& out, CodeColorInfo const& colors) :
+        out_    (&out),
+        colors_ (&colors)
     {
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
         (IntLiteral const&) -> void
     {
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
         (FloatLiteral const&) -> void
     {
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
+        (StringLiteral const& s) -> void
+    {
+        out_->out(s.str_);
+    }
+
+    auto PseudocodeGenerator::visit
         (BinaryOperator const&) -> void
     {
     }
 
-    auto PseudocodePrinter::visit
-        (ValueType const&) -> void
+    auto PseudocodeGenerator::visit
+        (PrimType const& p) -> void
     {
+        out_->set_color(colors_->primType_);
+        out_->out(p.name_);
     }
 
-    auto PseudocodePrinter::visit
-        (Indirection const&) -> void
+    auto PseudocodeGenerator::visit
+        (CustomType const& c) -> void
     {
+        out_->set_color(colors_->customType_);
+        out_->out(c.name_);
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
+        (Indirection const& p) -> void
+    {
+        p.pointee_->accept(*this);
+        out_->set_color(colors_->plain_);
+        out_->out("*");
+    }
+
+    auto PseudocodeGenerator::visit
         (Class const& c) -> void
     {
         // Class header.
-        this->begin_line();
-        this->out() << "Trieda " << c.name_;
+        out_->begin_line();
+        out_->set_color(colors_->keyword_);
+        out_->out("Trieda ").out(c.name_);
 
         if (not c.bases_.empty())
         {
-            this->out() << " rozširuje ";
+            out_->set_color(colors_->keyword_);
+            out_->out(" rozširuje ");
+            out_->set_color(colors_->plain_);
+
             auto it = std::begin(c.bases_);
             auto const end = std::end(c.bases_);
             while (it != end)
             {
-                this->out() << (*it)->name_;
+                out_->set_color(colors_->customType_);
+                out_->out((*it)->name_);
                 ++it;
                 if (it != end)
                 {
-                    this->out() << ", ";
+                    out_->set_color(colors_->plain_);
+                    out_->out(", ");
                 }
             }
         }
 
-        this->end_line();
-        this->inc_indent();
+        out_->out(" {");
+        out_->end_line();
+        out_->inc_indent();
 
         // Visit methods.
         for (auto const& m : c.methods_)
@@ -121,7 +155,7 @@ namespace fri
         }
         if (not c.methods_.empty())
         {
-            this->blank_line();
+            out_->blank_line();
         }
 
         // Visit fields.
@@ -131,18 +165,18 @@ namespace fri
         }
 
         // Class end.
-        this->dec_indent();
-        this->begin_line();
-        this->out() << "adeirt";
-        this->end_line();
-        this->end_line();
+        out_->dec_indent();
+        out_->begin_line();
+        out_->out("}");
+        out_->end_line();
+        out_->end_line();
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
         (Method const& m) -> void
     {
-        this->begin_line();
-        this->out() << "Operácia " << m.name_ << "(";
+        out_->begin_line();
+        out_->out("Operácia ").out(m.name_).out("(");
 
         auto it = std::begin(m.params_);
         auto const end = std::end(m.params_);
@@ -152,50 +186,79 @@ namespace fri
             ++it;
             if (it != end)
             {
-                this->out() << ", ";
+                out_->out(", ");
             }
         }
 
-        this->out() << "): " << m.retType_;
-        this->end_line();
+        out_->out("): ");
+        m.retType_->accept(*this);
+
+        if (m.body_.has_value())
+        {
+            m.body_.value().accept(*this);
+        }
+        out_->end_line();
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
         (ForLoop const&) -> void
     {
 
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
         (WhileLoop const&) -> void
     {
 
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
         (DoWhileLoop const&) -> void
     {
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
         (VariableDefinition const& f) -> void
     {
-        this->out() << f.name_ << ": " << f.type_;
-        // TODO initializer if present
+        out_->out(f.name_).out(": ");
+        f.type_->accept(*this);
+        if (f.initializer_)
+        {
+            out_->set_color(colors_->plain_);
+            out_->out(" <- ");
+            f.initializer_->accept(*this);
+        }
     }
 
-    auto PseudocodePrinter::visit
+    auto PseudocodeGenerator::visit
         (FieldDefinition const& f) -> void
     {
-        this->begin_line();
-        this->out() << "Atribút ";
+        out_->begin_line();
+        out_->set_color(colors_->keyword_);
+        out_->out("Atribút ");
         f.var_.accept(*this);
-        this->end_line();
+        out_->end_line();
     }
 
-    auto PseudocodePrinter::visit
-        (CompoundStatement const&) -> void
+    auto PseudocodeGenerator::visit
+        (CompoundStatement const& ss) -> void
     {
+        out_->set_color(colors_->plain_);
+        out_->out(" {");
+        out_->end_line();
+        out_->inc_indent();
 
+        for (auto const& s : ss.statements_)
+        {
+            out_->begin_line();
+            s->accept(*this);
+            out_->end_line();
+        }
+
+        out_->dec_indent();
+        out_->set_color(colors_->plain_);
+        out_->begin_line();
+        out_->out("}");
+        out_->end_line();
     }
 }
