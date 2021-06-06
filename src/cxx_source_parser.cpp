@@ -8,23 +8,44 @@
 
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <iostream>
+#include <cassert>
 
 namespace fri
 {
+    /**
+     *  @brief Expression visitor.
+     */
+    class ExpressionVisitor : public clang::RecursiveASTVisitor<ExpressionVisitor>
+    {
+    public:
+        auto release_expression () -> std::unique_ptr<Expression>;
+
+        auto VisitIntegerLiteral (clang::IntegerLiteral*) -> bool;
+
+    private:
+        std::unique_ptr<Expression> expression_;
+    };
+
     /**
      *  @brief Visits statements in clang AST.
      */
     class StatementVisitor : public clang::RecursiveASTVisitor<StatementVisitor>
     {
     public:
-        auto release_result () -> std::unique_ptr<Statement>;
+        auto release_statement () -> std::unique_ptr<Statement>;
+        auto release_compound  () -> std::unique_ptr<CompoundStatement>;
 
         auto VisitCompoundStmt (clang::CompoundStmt*) -> bool;
         auto VisitVarDecl      (clang::VarDecl*)      -> bool;
+        auto VisitReturnStmt   (clang::ReturnStmt*)   -> bool;
 
     private:
-        std::unique_ptr<Statement> result_ {};
+        std::unique_ptr<Statement>         statement_ {};
+        std::unique_ptr<CompoundStatement> compound_  {};
+        ExpressionVisitor                  expressioner_;
+        // std::unordered_set<clang::Stmt*>   visited_;
     };
 
     /**
@@ -38,6 +59,19 @@ namespace fri
                               , std::vector<std::string> const& namespaces );
 
         auto VisitCXXRecordDecl (clang::CXXRecordDecl* classDecl) -> bool;
+
+        // auto VisitCXXMethodDecl (clang::CXXMethodDecl* decl) -> bool
+        // {
+        //     if (not this->should_visit(decl->getQualifiedNameAsString()))
+        //     {
+        //         return true;
+        //     }
+
+        //     auto const parentName = decl->getParent()->getQualifiedNameAsString();
+        //     std::cout << "  " << decl << " : " << parentName << "::" << decl->getNameAsString() << " : " << decl->getBody() <<'\n';
+
+        //     return true;
+        // }
 
     private:
         auto get_class    (std::string const&) -> Class&;
@@ -113,12 +147,34 @@ namespace fri
         }
     }
 
+// ExpressionVisitor definitions:
+
+    auto ExpressionVisitor::release_expression
+        () -> std::unique_ptr<Expression>
+    {
+        return expression_ ? std::unique_ptr<Expression>(std::move(expression_))
+                           : std::make_unique<StringLiteral>("<unknown expression>");
+    }
+
+    auto ExpressionVisitor::VisitIntegerLiteral
+        (clang::IntegerLiteral* i) -> bool
+    {
+        expression_ = std::make_unique<IntLiteral>(i->getValue().getSExtValue());
+        return false;
+    }
+
 // StatementVisitor definitions:
 
-    auto StatementVisitor::release_result
+    auto StatementVisitor::release_compound
+        () -> std::unique_ptr<CompoundStatement>
+    {
+        return std::unique_ptr<CompoundStatement>(std::move(compound_));
+    }
+
+    auto StatementVisitor::release_statement
         () -> std::unique_ptr<Statement>
     {
-        return std::unique_ptr<Statement>(std::move(result_));
+        return std::unique_ptr<Statement>(std::move(statement_));
     }
 
     auto StatementVisitor::VisitCompoundStmt
@@ -129,10 +185,11 @@ namespace fri
         for (auto const s : compound->body())
         {
             this->TraverseStmt(s);
-            result->statements_.emplace_back(this->release_result());
+            auto statement = this->release_statement();
+            result->statements_.emplace_back(statement ? std::move(statement) : std::make_unique<ExpressionStatement>(std::make_unique<StringLiteral>("<unknown statement>")));
         }
 
-        result_ = std::move(result);
+        compound_ = std::move(result);
         return false;
     }
 
@@ -146,10 +203,19 @@ namespace fri
         auto const init = decl->getInit();
         if (init)
         {
-            def->initializer_ = std::make_unique<StringLiteral>("<unknown expression>"); // TODO
+            expressioner_.TraverseStmt(init);
+            def->initializer_ = expressioner_.release_expression();
         }
 
-        result_ = std::move(def);
+        statement_ = std::move(def);
+        return false;
+    }
+
+    auto StatementVisitor::VisitReturnStmt
+        (clang::ReturnStmt* ret) -> bool
+    {
+        expressioner_.TraverseStmt(ret->getRetValue());
+        statement_ = std::make_unique<Return>(expressioner_.release_expression());
         return false;
     }
 
@@ -196,6 +262,11 @@ namespace fri
 
         for (auto const method : classDecl->methods())
         {
+            if (method->isImplicit() or method == classDecl->getDestructor())
+            {
+                continue;
+            }
+
             auto& m    = c.methods_.emplace_back();
             m.name_    = method->getNameAsString();
             m.retType_ = extract_type(method->getReturnType());
@@ -218,13 +289,8 @@ namespace fri
                 if (body)
                 {
                     statementer_.TraverseStmt(body);
-                    m.body_ = CompoundStatement();
-                    // if is compound
-                    method->hasBody();
-                }
-                else
-                {
-                    // TODO not good
+                    auto const compound = statementer_.release_compound();
+                    m.body_ = std::move(*compound);
                 }
             }
         }
@@ -294,7 +360,7 @@ namespace fri
         (std::string const& code) -> TranslationUnit
     {
         auto cs   = std::vector<std::unique_ptr<Class>>();
-        auto args = std::vector<std::string> {};
+        auto args = std::vector<std::string> {"-O0"};
         auto ns   = std::vector<std::string> {"mm", "adt", "amt"};
         clang::tooling::runToolOnCodeWithArgs(std::make_unique<FindClassAction>(cs, ns), code, args);
         return TranslationUnit(std::move(cs));

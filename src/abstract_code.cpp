@@ -28,7 +28,15 @@ namespace fri
     {
     }
 
-// String literal definition:
+// IntLiteral definitions:
+
+    IntLiteral::IntLiteral
+        (std::int64_t const i) :
+        num_ (i)
+    {
+    }
+
+// StringLiteral definition:
 
     StringLiteral::StringLiteral
         (std::string str) :
@@ -36,11 +44,27 @@ namespace fri
     {
     }
 
+// Return definition:
+
+    Return::Return
+        (std::unique_ptr<Expression> e) :
+        expression_ (std::move(e))
+    {
+    }
+
+// ExpressionStatement definition:
+
+    ExpressionStatement::ExpressionStatement
+        (std::unique_ptr<Expression> expression) :
+        expression_ (std::move(expression))
+    {
+    }
+
 // Method definitions:
 
     auto is_pure_virtual (Method const& m) -> bool
     {
-        return m.body_.has_value();
+        return not m.body_.has_value();
     }
 
 // Class definitions:

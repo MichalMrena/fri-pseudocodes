@@ -83,6 +83,8 @@ namespace fri
     struct IntLiteral : public Visitable<Expression, IntLiteral>
     {
         std::int64_t num_;
+
+        IntLiteral (std::int64_t);
     };
 
     /**
@@ -119,6 +121,26 @@ namespace fri
     struct CompoundStatement : public Visitable<Statement, CompoundStatement>
     {
         std::vector<std::unique_ptr<Statement>> statements_;
+    };
+
+    /**
+     *  @brief Return statement.
+     */
+    struct Return : public Visitable<Statement, Return>
+    {
+        std::unique_ptr<Expression> expression_;
+
+        Return (std::unique_ptr<Expression>);
+    };
+
+    /**
+     *  @brief Expression statement.
+     */
+    struct ExpressionStatement : public Visitable<Statement, ExpressionStatement>
+    {
+        std::unique_ptr<Expression> expression_;
+
+        ExpressionStatement (std::unique_ptr<Expression>);
     };
 
     /**
@@ -222,14 +244,16 @@ namespace fri
         virtual auto visit (CustomType const&)  -> void = 0;
         virtual auto visit (Indirection const&) -> void = 0;
 
-        virtual auto visit (Class const&)              -> void = 0;
-        virtual auto visit (Method const&)             -> void = 0;
-        virtual auto visit (ForLoop const&)            -> void = 0;
-        virtual auto visit (WhileLoop const&)          -> void = 0;
-        virtual auto visit (DoWhileLoop const&)        -> void = 0;
-        virtual auto visit (FieldDefinition const&)    -> void = 0;
-        virtual auto visit (VariableDefinition const&) -> void = 0;
-        virtual auto visit (CompoundStatement const&)  -> void = 0;
+        virtual auto visit (Class const&)               -> void = 0;
+        virtual auto visit (Method const&)              -> void = 0;
+        virtual auto visit (ForLoop const&)             -> void = 0;
+        virtual auto visit (WhileLoop const&)           -> void = 0;
+        virtual auto visit (DoWhileLoop const&)         -> void = 0;
+        virtual auto visit (FieldDefinition const&)     -> void = 0;
+        virtual auto visit (VariableDefinition const&)  -> void = 0;
+        virtual auto visit (CompoundStatement const&)   -> void = 0;
+        virtual auto visit (ExpressionStatement const&) -> void = 0;
+        virtual auto visit (Return const&)              -> void = 0;
     };
 
     template<class VirtualBase, class Derived>

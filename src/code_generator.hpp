@@ -19,6 +19,9 @@ namespace fri
         std::uint8_t b_;
     };
 
+    auto operator== (Color const&, Color const&) -> bool;
+    auto operator!= (Color const&, Color const&) -> bool;
+
     /**
      *  @brief Colors of different parts of code.
      */
@@ -30,6 +33,7 @@ namespace fri
         Color plain_;
         Color customType_;
         Color primType_;
+        Color string_;
     };
 
     /**
@@ -46,8 +50,8 @@ namespace fri
         virtual auto end_line   () -> void = 0;
         virtual auto blank_line () -> void = 0;
 
-        virtual auto out        (std::string_view) -> ICodePrinter& = 0;
-        virtual auto set_color  (Color const&)     -> void = 0;
+        virtual auto out        (std::string_view)               -> ICodePrinter& = 0;
+        virtual auto out        (std::string_view, Color const&) -> ICodePrinter& = 0;
     };
 
     /**
@@ -56,7 +60,8 @@ namespace fri
     class ConsoleCodePrinter : public ICodePrinter
     {
     public:
-        ConsoleCodePrinter ();
+        ConsoleCodePrinter  ();
+        ~ConsoleCodePrinter ();
 
         auto inc_indent () -> void override;
         auto dec_indent () -> void override;
@@ -64,8 +69,12 @@ namespace fri
         auto end_line   () -> void override;
         auto blank_line () -> void override;
 
-        auto out        (std::string_view) -> ConsoleCodePrinter& override;
-        auto set_color  (Color const&)     -> void override;
+        auto out        (std::string_view)               -> ConsoleCodePrinter& override;
+        auto out        (std::string_view, Color const&) -> ConsoleCodePrinter& override;
+
+    private:
+        auto set_color   (Color const&) -> void;
+        auto reset_color ()             -> void;
 
     private:
         std::size_t      indentStep_;
@@ -98,6 +107,8 @@ namespace fri
         auto visit (FieldDefinition const& c)    -> void override;
         auto visit (VariableDefinition const& c) -> void override;
         auto visit (CompoundStatement const& c)  -> void override;
+        auto visit (ExpressionStatement const&)  -> void override;
+        auto visit (Return const&)               -> void override;
 
     private:
         ICodePrinter*        out_;

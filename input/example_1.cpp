@@ -4,13 +4,19 @@ namespace mm
 {
     class Tvar
     {
-
+        virtual ~Tvar () = default;
+        virtual double area () const = 0;
     };
 
     template<class T>
     class Kruh : public Tvar
     {
     public:
+        double area () const override
+        {
+            return 3.14;
+        }
+
         int foo(int q);
         int boo();
 
@@ -18,6 +24,12 @@ namespace mm
         double radius_;
         int    weight_;
     };
+
+    template<class T>
+    int Kruh<T>::foo(int q)
+    {
+        return 3;
+    }
 
     template<class T>
     int Kruh<T>::boo()

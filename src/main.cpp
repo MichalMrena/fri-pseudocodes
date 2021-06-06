@@ -38,9 +38,16 @@ int main(int argc, char **argv)
         ofstOpt = std::move(ofst);
     }
 
+    auto colors = fri::CodeColorInfo { .function_   = fri::Color {255, 255, 0  }
+                                     , .variable_   = fri::Color {0,   255, 255}
+                                     , .keyword_    = fri::Color {0,   0,   255}
+                                     , .plain_      = fri::Color {255, 255, 255}
+                                     , .customType_ = fri::Color {0,   255, 0  }
+                                     , .primType_   = fri::Color {0,   0,   255}
+                                     , .string_     = fri::Color {255, 0,   0  } };
+
     // Analyze code and generate pseudocode.
     auto& ost               = static_cast<std::ostream&>(ofstOpt ? ofstOpt.value() : std::cout);
-    auto colors             = fri::CodeColorInfo();
     auto printer            = fri::ConsoleCodePrinter();
     auto generator          = fri::PseudocodeGenerator(printer, colors);
     auto const abstractCode = fri::extract_code(code);
@@ -53,14 +60,14 @@ int main(int argc, char **argv)
     }
 
     // std::cout << "\n";
-    // std::cout << "\x1B[90m Text"       << '\n';
-    // std::cout << "\x1B[91m Text"       << '\n';
-    // std::cout << "\x1B[92m Text"       << '\n';
-    // std::cout << "\x1B[93m Text"       << '\n';
-    // std::cout << "\x1B[94m Text"       << '\n';
-    // std::cout << "\x1B[95m Text"       << '\n';
-    // std::cout << "\x1B[96m Text"       << '\n';
-    // std::cout << "\x1B[97m Text"       << '\n';
+    // std::cout << "\x1B[90m Text"       << '\n'; // black
+    // std::cout << "\x1B[91m Text"       << '\n'; // red
+    // std::cout << "\x1B[92m Text"       << '\n'; // green
+    // std::cout << "\x1B[93m Text"       << '\n'; // yellow
+    // std::cout << "\x1B[94m Text"       << '\n'; // blue
+    // std::cout << "\x1B[95m Text"       << '\n'; // purple
+    // std::cout << "\x1B[96m Text"       << '\n'; // cyan
+    // std::cout << "\x1B[97m Text"       << '\n'; // white
     // std::cout << '\n';
     // std::cout << "\x1B[3;42;30m Text  \x1B[0m"  << '\n';
     // std::cout << "\x1B[3;43;30m Text  \x1B[0m"  << '\n';

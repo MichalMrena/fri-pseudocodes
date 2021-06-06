@@ -5,6 +5,20 @@
 
 namespace fri
 {
+// Color definitions:
+
+    auto operator== (Color const& l, Color const& r) -> bool
+    {
+        return l.r_ == r.r_
+           and l.g_ == r.g_
+           and l.b_ == r.b_;
+    }
+
+    auto operator!= (Color const& l, Color const& r) -> bool
+    {
+        return not (l == r);
+    }
+
 // ConsoleCodePrinter definitions:
 
     ConsoleCodePrinter::ConsoleCodePrinter
@@ -15,10 +29,15 @@ namespace fri
     {
     }
 
+    ConsoleCodePrinter::~ConsoleCodePrinter
+        ()
+    {
+        this->reset_color();
+    }
+
     auto ConsoleCodePrinter::inc_indent
         () -> void
     {
-
         ++currentIndent_;
     }
 
@@ -50,17 +69,38 @@ namespace fri
         this->end_line();
     }
 
-    auto ConsoleCodePrinter::set_color
-        (Color const&) -> void
-    {
-        // TODO
-    }
-
     auto ConsoleCodePrinter::out
         (std::string_view s) -> ConsoleCodePrinter&
     {
         std::cout << s;
         return *this;
+    }
+
+    auto ConsoleCodePrinter::out
+        (std::string_view s, Color const& c) -> ConsoleCodePrinter&
+    {
+        this->set_color(c);
+        std::cout << s;
+        this->reset_color();
+        return *this;
+    }
+
+    auto ConsoleCodePrinter::set_color
+        (Color const& c) -> void
+    {
+        std::cout << ( Color {255, 0,   0}   == c ? "\x1B[91m"
+                     : Color {0,   255, 0}   == c ? "\x1B[92m"
+                     : Color {255, 255, 0}   == c ? "\x1B[93m"
+                     : Color {0,   0,   255} == c ? "\x1B[94m"
+                     : Color {0,   255, 255} == c ? "\x1B[96m"
+                     : Color {255, 255, 255} == c ? "\x1B[97m"
+                     :                              "\x1B[94m" );
+    }
+
+    auto ConsoleCodePrinter::reset_color
+        () -> void
+    {
+        std::cout << "\x1B[0m";
     }
 
 // PseudocodeGenerator definitions:
@@ -73,19 +113,23 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
-        (IntLiteral const&) -> void
+        (IntLiteral const& i) -> void
     {
+        out_->out(std::to_string(i.num_), colors_->plain_);
     }
 
     auto PseudocodeGenerator::visit
-        (FloatLiteral const&) -> void
+        (FloatLiteral const& f) -> void
     {
+        out_->out(std::to_string(f.num_), colors_->plain_);
     }
 
     auto PseudocodeGenerator::visit
         (StringLiteral const& s) -> void
     {
-        out_->out(s.str_);
+        out_->out("\"", colors_->string_);
+        out_->out(s.str_, colors_->string_);
+        out_->out("\"", colors_->string_);
     }
 
     auto PseudocodeGenerator::visit
@@ -96,23 +140,20 @@ namespace fri
     auto PseudocodeGenerator::visit
         (PrimType const& p) -> void
     {
-        out_->set_color(colors_->primType_);
-        out_->out(p.name_);
+        out_->out(p.name_, colors_->primType_);
     }
 
     auto PseudocodeGenerator::visit
         (CustomType const& c) -> void
     {
-        out_->set_color(colors_->customType_);
-        out_->out(c.name_);
+        out_->out(c.name_, colors_->customType_);
     }
 
     auto PseudocodeGenerator::visit
         (Indirection const& p) -> void
     {
         p.pointee_->accept(*this);
-        out_->set_color(colors_->plain_);
-        out_->out("*");
+        out_->out("*", colors_->plain_);
     }
 
     auto PseudocodeGenerator::visit
@@ -120,31 +161,34 @@ namespace fri
     {
         // Class header.
         out_->begin_line();
-        out_->set_color(colors_->keyword_);
-        out_->out("Trieda ").out(c.name_);
+        out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", colors_->keyword_);
+        out_->out(c.name_, colors_->customType_);
+
+        auto bases = c.bases_;
+        auto const mid = std::stable_partition(std::begin(bases), std::end(bases), [](auto const b)
+        {
+            return is_interface(*b);
+        });
+        // TODO
 
         if (not c.bases_.empty())
         {
-            out_->set_color(colors_->keyword_);
-            out_->out(" rozširuje ");
-            out_->set_color(colors_->plain_);
+            out_->out(" rozširuje ", colors_->keyword_);
 
             auto it = std::begin(c.bases_);
             auto const end = std::end(c.bases_);
             while (it != end)
             {
-                out_->set_color(colors_->customType_);
-                out_->out((*it)->name_);
+                out_->out((*it)->name_, colors_->customType_);
                 ++it;
                 if (it != end)
                 {
-                    out_->set_color(colors_->plain_);
-                    out_->out(", ");
+                    out_->out(", ", colors_->plain_);
                 }
             }
         }
 
-        out_->out(" {");
+        out_->out(" {", colors_->plain_);
         out_->end_line();
         out_->inc_indent();
 
@@ -176,7 +220,9 @@ namespace fri
         (Method const& m) -> void
     {
         out_->begin_line();
-        out_->out("Operácia ").out(m.name_).out("(");
+        out_->out("Operácia ", colors_->keyword_);
+        out_->out(m.name_, colors_->function_);
+        out_->out("(", colors_->plain_);
 
         auto it = std::begin(m.params_);
         auto const end = std::end(m.params_);
@@ -190,7 +236,7 @@ namespace fri
             }
         }
 
-        out_->out("): ");
+        out_->out("): ", colors_->plain_);
         m.retType_->accept(*this);
 
         if (m.body_.has_value())
@@ -220,12 +266,12 @@ namespace fri
     auto PseudocodeGenerator::visit
         (VariableDefinition const& f) -> void
     {
-        out_->out(f.name_).out(": ");
+        out_->out(f.name_, colors_->variable_);
+        out_->out(": ", colors_->plain_);
         f.type_->accept(*this);
         if (f.initializer_)
         {
-            out_->set_color(colors_->plain_);
-            out_->out(" <- ");
+            out_->out(" <- ", colors_->plain_);
             f.initializer_->accept(*this);
         }
     }
@@ -234,8 +280,7 @@ namespace fri
         (FieldDefinition const& f) -> void
     {
         out_->begin_line();
-        out_->set_color(colors_->keyword_);
-        out_->out("Atribút ");
+        out_->out("Atribút ", colors_->keyword_);
         f.var_.accept(*this);
         out_->end_line();
     }
@@ -243,8 +288,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (CompoundStatement const& ss) -> void
     {
-        out_->set_color(colors_->plain_);
-        out_->out(" {");
+        out_->out(" {", colors_->plain_);
         out_->end_line();
         out_->inc_indent();
 
@@ -256,9 +300,21 @@ namespace fri
         }
 
         out_->dec_indent();
-        out_->set_color(colors_->plain_);
         out_->begin_line();
-        out_->out("}");
+        out_->out("}", colors_->plain_);
         out_->end_line();
+    }
+
+    auto PseudocodeGenerator::visit
+        (ExpressionStatement const& e) -> void
+    {
+        e.expression_->accept(*this);
+    }
+
+    auto PseudocodeGenerator::visit
+        (Return const& r) -> void
+    {
+        out_->out("Vráť ", colors_->keyword_);
+        r.expression_->accept(*this);
     }
 }
