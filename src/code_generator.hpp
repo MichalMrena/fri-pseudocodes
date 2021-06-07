@@ -44,18 +44,44 @@ namespace fri
     public:
         virtual ~ICodePrinter() = default;
 
+        /**
+         *  @brief Increase current indentation.
+         */
         virtual auto inc_indent () -> void = 0;
+
+        /**
+         *  @brief Decrease current indentation.
+         */
         virtual auto dec_indent () -> void = 0;
+
+        /**
+         *  @brief Adds indentation characters to the output.
+         */
         virtual auto begin_line () -> void = 0;
-        virtual auto end_line   () -> void = 0;
+
+        /**
+         *  @brief Terminates current line and jumps to the begining of the next line.
+         */
+        virtual auto end_line () -> void = 0;
+
+        /**
+         *  @brief Prints an empty to the output.
+         */
         virtual auto blank_line () -> void = 0;
 
-        virtual auto out        (std::string_view)               -> ICodePrinter& = 0;
-        virtual auto out        (std::string_view, Color const&) -> ICodePrinter& = 0;
+        /**
+         *  @brief Prints string to the output.
+         */
+        virtual auto out (std::string_view) -> ICodePrinter& = 0;
+
+        /**
+         *  @brief Prints string to the output using given or similar color if possible.
+         */
+        virtual auto out (std::string_view, Color const&) -> ICodePrinter& = 0;
     };
 
     /**
-     *  @brief Base class for code printers.
+     *  @brief Prints code to the console.
      */
     class ConsoleCodePrinter : public ICodePrinter
     {
@@ -90,22 +116,25 @@ namespace fri
     public:
         PseudocodeGenerator (ICodePrinter&, CodeColorInfo const&);
 
-        auto visit (IntLiteral const&)     -> void override;
-        auto visit (FloatLiteral const&)   -> void override;
-        auto visit (StringLiteral const&)  -> void override;
-        auto visit (BinaryOperator const&) -> void override;
+        auto visit (IntLiteral const&)           -> void override;
+        auto visit (FloatLiteral const&)         -> void override;
+        auto visit (StringLiteral const&)        -> void override;
+        auto visit (BinaryOperator const&)       -> void override;
+        auto visit (Parenthesis const&)          -> void override;
 
-        auto visit (PrimType const&)    -> void override;
-        auto visit (CustomType const&)  -> void override;
-        auto visit (Indirection const&) -> void override;
+        auto visit (PrimType const&)             -> void override;
+        auto visit (CustomType const&)           -> void override;
+        auto visit (Indirection const&)          -> void override;
 
         auto visit (Class const& c)              -> void override;
         auto visit (Method const& c)             -> void override;
+        auto visit (VarDefCommon const& c)       -> void override;
+        auto visit (FieldDefinition const& c)    -> void override;
+        auto visit (ParamDefinition const& c)    -> void override;
+        auto visit (VarDefinition const& c)      -> void override;
         auto visit (ForLoop const& c)            -> void override;
         auto visit (WhileLoop const& c)          -> void override;
         auto visit (DoWhileLoop const& c)        -> void override;
-        auto visit (FieldDefinition const& c)    -> void override;
-        auto visit (VariableDefinition const& c) -> void override;
         auto visit (CompoundStatement const& c)  -> void override;
         auto visit (ExpressionStatement const&)  -> void override;
         auto visit (Return const&)               -> void override;

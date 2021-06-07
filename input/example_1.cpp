@@ -2,6 +2,15 @@
 
 namespace mm
 {
+    class Object
+    {
+        int uid;
+    };
+
+    class ISerializable
+    {
+    };
+
     class Tvar
     {
         virtual ~Tvar () = default;
@@ -9,7 +18,7 @@ namespace mm
     };
 
     template<class T>
-    class Kruh : public Tvar
+    class Kruh : public Tvar, public Object, public ISerializable
     {
     public:
         double area () const override
@@ -36,6 +45,6 @@ namespace mm
     {
         int x = 1;
         int y = 2;
-        return 3 * (x + y);
+        return (x + y);
     }
 }

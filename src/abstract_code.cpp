@@ -44,6 +44,14 @@ namespace fri
     {
     }
 
+// Parenthesis definition:
+
+    Parenthesis::Parenthesis
+        (std::unique_ptr<Expression> expression) :
+        expression_ (std::move(expression))
+    {
+    }
+
 // Return definition:
 
     Return::Return

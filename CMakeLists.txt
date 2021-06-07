@@ -14,7 +14,7 @@ include_directories(
   ${LibClangTooling_INCLUDE_DIRS}
 )
 
-add_executable(generate-pseudocode ./src/main.cpp ./src/abstract_code.cpp ./src/code_generator.cpp ./src/cxx_source_parser.cpp)
+add_executable(generate-pseudocode ./src/main.cpp ./src/abstract_code.cpp ./src/code_generator.cpp ./src/clang_source_parser.cpp ./src/clang_class_visitor.cpp ./src/clang_statement_visitor.cpp ./src/clang_expression_visitor.cpp ./src/clang_utils.cpp)
 
 
 target_compile_options(generate-pseudocode PRIVATE -std=c++20 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -O3)

@@ -135,6 +135,15 @@ namespace fri
     auto PseudocodeGenerator::visit
         (BinaryOperator const&) -> void
     {
+        // TODO
+    }
+
+    auto PseudocodeGenerator::visit
+        (Parenthesis const& p) -> void
+    {
+        out_->out("(", colors_->plain_);
+        p.expression_->accept(*this);
+        out_->out(")", colors_->plain_);
     }
 
     auto PseudocodeGenerator::visit
@@ -164,24 +173,40 @@ namespace fri
         out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", colors_->keyword_);
         out_->out(c.name_, colors_->customType_);
 
-        auto bases = c.bases_;
-        auto const mid = std::stable_partition(std::begin(bases), std::end(bases), [](auto const b)
+        // Split base classes to interfaces and classes.
+        auto bases          = c.bases_;
+        auto const basesEnd = std::end(bases);
+        auto const basesMid = std::stable_partition(std::begin(bases), std::end(bases), [](auto const b)
         {
             return is_interface(*b);
         });
-        // TODO
 
-        if (not c.bases_.empty())
+        // Print implemented interfaces.
+        auto itImpl = std::begin(bases);
+        if (itImpl != basesMid)
+        {
+            out_->out(" implementuje ", colors_->keyword_);
+            while (itImpl != basesMid)
+            {
+                out_->out((*itImpl)->name_, colors_->customType_);
+                ++itImpl;
+                if ((itImpl != basesMid))
+                {
+                    out_->out(", ", colors_->plain_);
+                }
+            }
+        }
+
+        // Print base classes.
+        auto itExt = basesMid;
+        if (itExt != basesEnd)
         {
             out_->out(" rozširuje ", colors_->keyword_);
-
-            auto it = std::begin(c.bases_);
-            auto const end = std::end(c.bases_);
-            while (it != end)
+            while (itExt != basesEnd)
             {
-                out_->out((*it)->name_, colors_->customType_);
-                ++it;
-                if (it != end)
+                out_->out((*itExt)->name_, colors_->customType_);
+                ++itExt;
+                if (itExt != basesEnd)
                 {
                     out_->out(", ", colors_->plain_);
                 }
@@ -220,7 +245,7 @@ namespace fri
         (Method const& m) -> void
     {
         out_->begin_line();
-        out_->out("Operácia ", colors_->keyword_);
+        out_->out("operácia ", colors_->keyword_);
         out_->out(m.name_, colors_->function_);
         out_->out("(", colors_->plain_);
 
@@ -264,7 +289,7 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
-        (VariableDefinition const& f) -> void
+        (VarDefCommon const& f) -> void
     {
         out_->out(f.name_, colors_->variable_);
         out_->out(": ", colors_->plain_);
@@ -280,9 +305,22 @@ namespace fri
         (FieldDefinition const& f) -> void
     {
         out_->begin_line();
-        out_->out("Atribút ", colors_->keyword_);
+        out_->out("vlastnosť ", colors_->keyword_);
         f.var_.accept(*this);
         out_->end_line();
+    }
+
+    auto PseudocodeGenerator::visit
+        (ParamDefinition const& p) -> void
+    {
+        p.var_.accept(*this);
+    }
+
+    auto PseudocodeGenerator::visit
+        (VarDefinition const& v) -> void
+    {
+        out_->out("premenná ", colors_->keyword_);
+        v.var_.accept(*this);
     }
 
     auto PseudocodeGenerator::visit

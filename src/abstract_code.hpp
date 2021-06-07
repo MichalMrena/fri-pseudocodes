@@ -11,197 +11,165 @@ namespace fri
 {
     class CodeVisitor;
 
-    /**
-     *  @brief Common base class for all expressions.
-     */
     struct Expression
     {
         virtual ~Expression () = default;
-        virtual auto accept (CodeVisitor& visitor) const -> void = 0;
+        virtual auto accept (CodeVisitor&) const -> void = 0;
     };
 
-    /**
-     *  @brief Common base class for all statements.
-     */
     struct Statement
     {
         virtual ~Statement () = default;
-        virtual auto accept (CodeVisitor& visitor) const -> void = 0;
+        virtual auto accept (CodeVisitor&) const -> void = 0;
     };
 
-    /**
-     *  @brief Base class for types.
-     */
     struct Type
     {
         virtual ~Type () = default;
-        virtual auto accept (CodeVisitor& visitor) const -> void = 0;
+        virtual auto accept (CodeVisitor&) const -> void = 0;
     };
 
     /**
-     *  @brief Class template that implements accept for all derived classes.
+     *  @brief Implements accept using CRTP.
+     */
+    template<class Derived>
+    struct Visitable
+    {
+        auto accept (CodeVisitor&) const -> void;
+    };
+
+    /**
+     *  @brief Implements accept using CRTP. And makes derived classe a @p VirtualBase .
      */
     template<class VirtualBase, class Derived>
-    struct Visitable : public VirtualBase
+    struct VisitableFamily : public VirtualBase
     {
-        auto accept (CodeVisitor& visitor) const -> void override;
+        auto accept (CodeVisitor&) const -> void override;
     };
 
-    /**
-     *  @brief Primitive type.
-     */
-    struct PrimType : public Visitable<Type, PrimType>
+// Types:
+
+    struct PrimType : public VisitableFamily<Type, PrimType>
     {
         std::string name_;
-
         PrimType (std::string name);
     };
 
-    /**
-     *  @brief Custom type.
-     */
-    struct CustomType : public Visitable<Type, CustomType>
+    struct CustomType : public VisitableFamily<Type, CustomType>
     {
         std::string name_;
-
         CustomType (std::string name);
     };
 
-    /**
-     *  @brief Pointer or reference.
-     */
-    struct Indirection : public Visitable<Type, Indirection>
+    struct Indirection : public VisitableFamily<Type, Indirection>
     {
         std::unique_ptr<Type> pointee_ {};
-
         Indirection (std::unique_ptr<Type> pointee);
     };
 
-    /**
-     *  @brief Integral literal.
-     */
-    struct IntLiteral : public Visitable<Expression, IntLiteral>
+// Expressions:
+
+    struct IntLiteral : public VisitableFamily<Expression, IntLiteral>
     {
         std::int64_t num_;
-
         IntLiteral (std::int64_t);
     };
 
-    /**
-     *  @brief Floating point literal.
-     */
-    struct FloatLiteral : public Visitable<Expression, FloatLiteral>
+    struct FloatLiteral : public VisitableFamily<Expression, FloatLiteral>
     {
         double num_;
     };
 
-    /**
-     *  @brief String literal.
-     */
-    struct StringLiteral : public Visitable<Expression, StringLiteral>
+    struct StringLiteral : public VisitableFamily<Expression, StringLiteral>
     {
         std::string str_;
-
         StringLiteral (std::string);
     };
 
-    /**
-     *  @brief Binary operator.
-     */
-    struct BinaryOperator : public Visitable<Expression, BinaryOperator>
+    struct BinaryOperator : public VisitableFamily<Expression, BinaryOperator>
     {
         char                        op_;
         std::unique_ptr<Expression> lhs_;
         std::unique_ptr<Expression> rhs_;
     };
 
-    /**
-     *  @brief Compound statement (block of code).
-     */
-    struct CompoundStatement : public Visitable<Statement, CompoundStatement>
-    {
-        std::vector<std::unique_ptr<Statement>> statements_;
-    };
-
-    /**
-     *  @brief Return statement.
-     */
-    struct Return : public Visitable<Statement, Return>
+    struct Parenthesis : public VisitableFamily<Expression, Parenthesis>
     {
         std::unique_ptr<Expression> expression_;
-
-        Return (std::unique_ptr<Expression>);
+        Parenthesis (std::unique_ptr<Expression>);
     };
 
-    /**
-     *  @brief Expression statement.
-     */
-    struct ExpressionStatement : public Visitable<Statement, ExpressionStatement>
-    {
-        std::unique_ptr<Expression> expression_;
+// Other:
 
-        ExpressionStatement (std::unique_ptr<Expression>);
-    };
-
-    /**
-     *  @brief For loop.
-     */
-    struct ForLoop : public Visitable<Statement, ForLoop>
-    {
-        CompoundStatement body_;
-    };
-
-    /**
-     *  @brief While loop.
-     */
-    struct WhileLoop : public Visitable<Statement, WhileLoop>
-    {
-        CompoundStatement body_;
-    };
-
-    /**
-     *  @brief Do while loop.
-     */
-    struct DoWhileLoop : public Visitable<Statement, DoWhileLoop>
-    {
-        CompoundStatement body_;
-    };
-
-    /**
-     *  @brief Variable definition.
-     */
-    struct VariableDefinition : public Visitable<Statement, VariableDefinition>
+    struct VarDefCommon : public Visitable<VarDefCommon>
     {
         std::unique_ptr<Type>       type_;
         std::string                 name_;
         std::unique_ptr<Expression> initializer_ {};
     };
 
-    /**
-     *  @brief Class field definition.
-     */
-    struct FieldDefinition : public Visitable<Statement, FieldDefinition>
+    struct ParamDefinition : public Visitable<ParamDefinition>
     {
-        VariableDefinition var_;
+        VarDefCommon var_;
     };
 
-    /**
-     *  @brief Method definition.
-     */
-    struct Method : public Visitable<Statement, Method>
+    struct FieldDefinition : public Visitable<FieldDefinition>
+    {
+        VarDefCommon var_;
+    };
+
+// Statements:
+
+    struct VarDefinition : public VisitableFamily<Statement, VarDefinition>
+    {
+        VarDefCommon var_;
+    };
+
+    struct CompoundStatement : public VisitableFamily<Statement, CompoundStatement>
+    {
+        std::vector<std::unique_ptr<Statement>> statements_;
+    };
+
+    struct Return : public VisitableFamily<Statement, Return>
+    {
+        std::unique_ptr<Expression> expression_;
+        Return (std::unique_ptr<Expression>);
+    };
+
+    struct ExpressionStatement : public VisitableFamily<Statement, ExpressionStatement>
+    {
+        std::unique_ptr<Expression> expression_;
+        ExpressionStatement (std::unique_ptr<Expression>);
+    };
+
+    struct ForLoop : public VisitableFamily<Statement, ForLoop>
+    {
+        CompoundStatement body_;
+    };
+
+    struct WhileLoop : public VisitableFamily<Statement, WhileLoop>
+    {
+        CompoundStatement body_;
+    };
+
+    struct DoWhileLoop : public VisitableFamily<Statement, DoWhileLoop>
+    {
+        CompoundStatement body_;
+    };
+
+// Other:
+
+    struct Method : public Visitable<Method>
     {
         std::string                      name_;
         std::unique_ptr<Type>            retType_;
-        std::vector<VariableDefinition>  params_;
+        std::vector<ParamDefinition>     params_;
         std::optional<CompoundStatement> body_ {};
     };
 
     auto is_pure_virtual (Method const&) -> bool;
 
-    /**
-     *  @brief Class definition.
-     */
-    struct Class : public Visitable<Statement, Class>
+    struct Class : public Visitable<Class>
     {
         std::string                  qualName_;
         std::string                  name_;
@@ -235,29 +203,39 @@ namespace fri
     public:
         virtual ~CodeVisitor () = default;
 
-        virtual auto visit (IntLiteral const&)     -> void = 0;
-        virtual auto visit (FloatLiteral const&)   -> void = 0;
-        virtual auto visit (StringLiteral const&)  -> void = 0;
-        virtual auto visit (BinaryOperator const&) -> void = 0;
+        virtual auto visit (IntLiteral const&)          -> void = 0;
+        virtual auto visit (FloatLiteral const&)        -> void = 0;
+        virtual auto visit (StringLiteral const&)       -> void = 0;
+        virtual auto visit (BinaryOperator const&)      -> void = 0;
+        virtual auto visit (Parenthesis const&)         -> void = 0;
 
-        virtual auto visit (PrimType const&)    -> void = 0;
-        virtual auto visit (CustomType const&)  -> void = 0;
-        virtual auto visit (Indirection const&) -> void = 0;
+        virtual auto visit (PrimType const&)            -> void = 0;
+        virtual auto visit (CustomType const&)          -> void = 0;
+        virtual auto visit (Indirection const&)         -> void = 0;
 
         virtual auto visit (Class const&)               -> void = 0;
         virtual auto visit (Method const&)              -> void = 0;
+        virtual auto visit (VarDefCommon const&)        -> void = 0;
+        virtual auto visit (FieldDefinition const&)     -> void = 0;
+        virtual auto visit (ParamDefinition const&)     -> void = 0;
+        virtual auto visit (VarDefinition const&)       -> void = 0;
         virtual auto visit (ForLoop const&)             -> void = 0;
         virtual auto visit (WhileLoop const&)           -> void = 0;
         virtual auto visit (DoWhileLoop const&)         -> void = 0;
-        virtual auto visit (FieldDefinition const&)     -> void = 0;
-        virtual auto visit (VariableDefinition const&)  -> void = 0;
         virtual auto visit (CompoundStatement const&)   -> void = 0;
         virtual auto visit (ExpressionStatement const&) -> void = 0;
         virtual auto visit (Return const&)              -> void = 0;
     };
 
+    template<class Derived>
+    auto Visitable<Derived>::accept
+        (CodeVisitor& visitor) const -> void
+    {
+        visitor.visit(static_cast<Derived const&>(*this));
+    }
+
     template<class VirtualBase, class Derived>
-    auto Visitable<VirtualBase, Derived>::accept
+    auto VisitableFamily<VirtualBase, Derived>::accept
         (CodeVisitor& visitor) const -> void
     {
         visitor.visit(static_cast<Derived const&>(*this));
