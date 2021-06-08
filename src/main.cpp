@@ -26,17 +26,17 @@ int main(int argc, char **argv)
     auto const code = ist.str();
 
     // Create output stream. File if 2nd arg is provided, std::cout otherwise.
-    auto ofstOpt = std::optional<std::ofstream>();
-    if (argc > 2)
-    {
-        auto ofst = std::ofstream(argv[2]);
-        if (not ofst.is_open())
-        {
-            std::cerr << "Failed to open output file: " << argv[2] << '\n';
-            return 1;
-        }
-        ofstOpt = std::move(ofst);
-    }
+    // auto ofstOpt = std::optional<std::ofstream>();
+    // if (argc > 2)
+    // {
+    //     auto ofst = std::ofstream(argv[2]);
+    //     if (not ofst.is_open())
+    //     {
+    //         std::cerr << "Failed to open output file: " << argv[2] << '\n';
+    //         return 1;
+    //     }
+    //     ofstOpt = std::move(ofst);
+    // }
 
     auto colors = fri::CodeColorInfo { .function_   = fri::Color {255, 255, 0  }
                                      , .variable_   = fri::Color {0,   255, 255}
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
                                      , .string_     = fri::Color {255, 0,   0  } };
 
     // Analyze code and generate pseudocode.
-    auto& ost               = static_cast<std::ostream&>(ofstOpt ? ofstOpt.value() : std::cout);
+    // auto& ost               = static_cast<std::ostream&>(ofstOpt ? ofstOpt.value() : std::cout);
     auto printer            = fri::ConsoleCodePrinter();
     auto generator          = fri::PseudocodeGenerator(printer, colors);
     auto const abstractCode = fri::extract_code(code);

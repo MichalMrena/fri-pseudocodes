@@ -133,9 +133,11 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
-        (BinaryOperator const&) -> void
+        (BinaryOperator const& b) -> void
     {
-        // TODO
+        b.lhs_->accept(*this);
+        out_->out(" ").out(this->op_to_string(b.op_), colors_->plain_).out(" ");
+        b.rhs_->accept(*this);
     }
 
     auto PseudocodeGenerator::visit
@@ -144,6 +146,12 @@ namespace fri
         out_->out("(", colors_->plain_);
         p.expression_->accept(*this);
         out_->out(")", colors_->plain_);
+    }
+
+    auto PseudocodeGenerator::visit
+        (VarRef const& r) -> void
+    {
+        out_->out(r.name_, colors_->variable_);
     }
 
     auto PseudocodeGenerator::visit
@@ -354,5 +362,28 @@ namespace fri
     {
         out_->out("Vráť ", colors_->keyword_);
         r.expression_->accept(*this);
+    }
+
+    auto PseudocodeGenerator::op_to_string
+        (BinOpcode op) const -> std::string
+    {
+        switch (op)
+        {
+            case BinOpcode::Add:     return "+";
+            case BinOpcode::Sub:     return "-";
+            case BinOpcode::Mul:     return "*";
+            case BinOpcode::Div:     return "/";
+            case BinOpcode::Mod:     return "mod";
+            case BinOpcode::And:     return "a";
+            case BinOpcode::Or:      return "alebo";
+            case BinOpcode::LT:      return "<";
+            case BinOpcode::LE:      return "<=";
+            case BinOpcode::GT:      return ">";
+            case BinOpcode::GE:      return ">=";
+            case BinOpcode::EQ:      return "==";
+            case BinOpcode::NE:      return "≠";
+            case BinOpcode::Unknown: return "<unknown operator>";
+            default:                 return "<unknown operator>";
+        }
     }
 }

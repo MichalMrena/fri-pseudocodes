@@ -1,5 +1,9 @@
 #include "clang_expression_visitor.hpp"
 
+#include "clang_utils.hpp"
+
+#include <iostream>
+
 namespace fri
 {
     auto ExpressionVisitor::release_expression
@@ -16,6 +20,13 @@ namespace fri
         return false;
     }
 
+    auto ExpressionVisitor::VisitFloatingLiteral
+        (clang::FloatingLiteral* f) -> bool
+    {
+        expression_ = std::make_unique<FloatLiteral>(f->getValue().convertToDouble());
+        return false;
+    }
+
     auto ExpressionVisitor::VisitParenExpr
         (clang::ParenExpr* p) -> bool
     {
@@ -25,9 +36,21 @@ namespace fri
     }
 
     auto ExpressionVisitor::VisitBinaryOperator
-        (clang::BinaryOperator* p) -> bool
+        (clang::BinaryOperator* b) -> bool
     {
-        // TODO
+        this->TraverseStmt(b->getLHS());
+        auto lhs = this->release_expression();
+        this->TraverseStmt(b->getRHS());
+        auto rhs = this->release_expression();
+        auto const op = switch_operator(b->getOpcode());
+        expression_ = std::make_unique<BinaryOperator>(std::move(lhs), op, std::move(rhs));
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitDeclRefExpr
+        (clang::DeclRefExpr* r) -> bool
+    {
+        expression_ = std::make_unique<VarRef>(r->getNameInfo().getAsString());
         return false;
     }
 }

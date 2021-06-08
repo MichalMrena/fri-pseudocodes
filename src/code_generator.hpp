@@ -121,6 +121,7 @@ namespace fri
         auto visit (StringLiteral const&)        -> void override;
         auto visit (BinaryOperator const&)       -> void override;
         auto visit (Parenthesis const&)          -> void override;
+        auto visit (VarRef const&)               -> void override;
 
         auto visit (PrimType const&)             -> void override;
         auto visit (CustomType const&)           -> void override;
@@ -138,6 +139,9 @@ namespace fri
         auto visit (CompoundStatement const& c)  -> void override;
         auto visit (ExpressionStatement const&)  -> void override;
         auto visit (Return const&)               -> void override;
+
+    private:
+        auto op_to_string (BinOpcode) const -> std::string;
 
     private:
         ICodePrinter*        out_;

@@ -78,6 +78,7 @@ namespace fri
     struct FloatLiteral : public VisitableFamily<Expression, FloatLiteral>
     {
         double num_;
+        FloatLiteral (double);
     };
 
     struct StringLiteral : public VisitableFamily<Expression, StringLiteral>
@@ -86,17 +87,29 @@ namespace fri
         StringLiteral (std::string);
     };
 
+    enum class BinOpcode
+    {
+        Add, Sub, Mul, Div, Mod, And, Or, LT, LE, GT, GE, EQ, NE, Unknown
+    };
+
     struct BinaryOperator : public VisitableFamily<Expression, BinaryOperator>
     {
-        char                        op_;
+        BinOpcode                   op_;
         std::unique_ptr<Expression> lhs_;
         std::unique_ptr<Expression> rhs_;
+        BinaryOperator (std::unique_ptr<Expression>, BinOpcode, std::unique_ptr<Expression>);
     };
 
     struct Parenthesis : public VisitableFamily<Expression, Parenthesis>
     {
         std::unique_ptr<Expression> expression_;
         Parenthesis (std::unique_ptr<Expression>);
+    };
+
+    struct VarRef : public VisitableFamily<Expression, VarRef>
+    {
+        std::string name_;
+        VarRef (std::string);
     };
 
 // Other:
@@ -208,6 +221,7 @@ namespace fri
         virtual auto visit (StringLiteral const&)       -> void = 0;
         virtual auto visit (BinaryOperator const&)      -> void = 0;
         virtual auto visit (Parenthesis const&)         -> void = 0;
+        virtual auto visit (VarRef const&)              -> void = 0;
 
         virtual auto visit (PrimType const&)            -> void = 0;
         virtual auto visit (CustomType const&)          -> void = 0;

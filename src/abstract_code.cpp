@@ -36,6 +36,14 @@ namespace fri
     {
     }
 
+// FloatLiteral definition:
+
+    FloatLiteral::FloatLiteral
+        (double const d) :
+        num_ (d)
+    {
+    }
+
 // StringLiteral definition:
 
     StringLiteral::StringLiteral
@@ -44,11 +52,31 @@ namespace fri
     {
     }
 
+// BinaryOperator definition:
+
+    BinaryOperator::BinaryOperator
+        ( std::unique_ptr<Expression> lhs
+        , BinOpcode                   op
+        , std::unique_ptr<Expression> rhs ) :
+        op_  (op),
+        lhs_ (std::move(lhs)),
+        rhs_ (std::move(rhs))
+    {
+    }
+
 // Parenthesis definition:
 
     Parenthesis::Parenthesis
         (std::unique_ptr<Expression> expression) :
         expression_ (std::move(expression))
+    {
+    }
+
+// VarRef definition:
+
+    VarRef::VarRef
+        (std::string name) :
+        name_ (std::move(name))
     {
     }
 

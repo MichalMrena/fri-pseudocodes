@@ -37,7 +37,7 @@ namespace mm
     template<class T>
     int Kruh<T>::foo(int q)
     {
-        return 3;
+        return 3 % 2;
     }
 
     template<class T>
@@ -45,6 +45,7 @@ namespace mm
     {
         int x = 1;
         int y = 2;
-        return (x + y);
+        x += 1;
+        return (x + y) + this->radius_;
     }
 }
