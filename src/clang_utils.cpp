@@ -51,7 +51,14 @@ namespace fri
             case clang::BinaryOperatorKind::BO_GE:  return BinOpcode::GE;
             case clang::BinaryOperatorKind::BO_EQ:  return BinOpcode::EQ;
             case clang::BinaryOperatorKind::BO_NE:  return BinOpcode::NE;
-            default:                                return BinOpcode::Unknown;
+
+            case clang::BinaryOperatorKind::BO_AddAssign: return BinOpcode::AddAssign;
+            case clang::BinaryOperatorKind::BO_SubAssign: return BinOpcode::SubAssign;
+            case clang::BinaryOperatorKind::BO_MulAssign: return BinOpcode::MulAssign;
+            case clang::BinaryOperatorKind::BO_DivAssign: return BinOpcode::DivAssign;
+            case clang::BinaryOperatorKind::BO_RemAssign: return BinOpcode::ModAssign;
+
+            default: return BinOpcode::Unknown;
         }
     }
 }

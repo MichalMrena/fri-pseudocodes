@@ -135,9 +135,20 @@ namespace fri
     auto PseudocodeGenerator::visit
         (BinaryOperator const& b) -> void
     {
-        b.lhs_->accept(*this);
-        out_->out(" ").out(this->op_to_string(b.op_), colors_->plain_).out(" ");
-        b.rhs_->accept(*this);
+        if (is_compound_op(b.op_))
+        {
+            b.lhs_->accept(*this);
+            out_->out(" <- ", colors_->plain_);
+            b.lhs_->accept(*this);
+            out_->out(" ").out(op_to_string(b.op_), colors_->plain_).out(" ");
+            b.rhs_->accept(*this);
+        }
+        else
+        {
+            b.lhs_->accept(*this);
+            out_->out(" ").out(op_to_string(b.op_), colors_->plain_).out(" ");
+            b.rhs_->accept(*this);
+        }
     }
 
     auto PseudocodeGenerator::visit
@@ -364,26 +375,55 @@ namespace fri
         r.expression_->accept(*this);
     }
 
+    auto PseudocodeGenerator::visit
+        (Assignment const& a) -> void
+    {
+        a.lhs_->accept(*this);
+        out_->out(" <- ", colors_->plain_);
+        a.rhs_->accept(*this);
+    }
+
     auto PseudocodeGenerator::op_to_string
-        (BinOpcode op) const -> std::string
+        (BinOpcode op) -> std::string
     {
         switch (op)
         {
-            case BinOpcode::Add:     return "+";
-            case BinOpcode::Sub:     return "-";
-            case BinOpcode::Mul:     return "*";
-            case BinOpcode::Div:     return "/";
-            case BinOpcode::Mod:     return "mod";
-            case BinOpcode::And:     return "a";
-            case BinOpcode::Or:      return "alebo";
-            case BinOpcode::LT:      return "<";
-            case BinOpcode::LE:      return "<=";
-            case BinOpcode::GT:      return ">";
-            case BinOpcode::GE:      return ">=";
-            case BinOpcode::EQ:      return "==";
-            case BinOpcode::NE:      return "≠";
+            case BinOpcode::Add: return "+";
+            case BinOpcode::Sub: return "-";
+            case BinOpcode::Mul: return "*";
+            case BinOpcode::Div: return "/";
+            case BinOpcode::Mod: return "mod";
+            case BinOpcode::And: return "a";
+            case BinOpcode::Or:  return "alebo";
+            case BinOpcode::LT:  return "<";
+            case BinOpcode::LE:  return "<=";
+            case BinOpcode::GT:  return ">";
+            case BinOpcode::GE:  return ">=";
+            case BinOpcode::EQ:  return "==";
+            case BinOpcode::NE:  return "≠";
+
+            case BinOpcode::AddAssign: return "+";
+            case BinOpcode::SubAssign: return "-";
+            case BinOpcode::MulAssign: return "*";
+            case BinOpcode::DivAssign: return "/";
+            case BinOpcode::ModAssign: return "mod";
+
             case BinOpcode::Unknown: return "<unknown operator>";
             default:                 return "<unknown operator>";
+        }
+    }
+
+    auto PseudocodeGenerator::is_compound_op
+        (BinOpcode op) -> bool
+    {
+        switch (op)
+        {
+            case BinOpcode::AddAssign:
+            case BinOpcode::SubAssign:
+            case BinOpcode::MulAssign:
+            case BinOpcode::DivAssign:
+            case BinOpcode::ModAssign: return true;
+            default:                   return false;
         }
     }
 }

@@ -80,6 +80,15 @@ namespace fri
     {
     }
 
+// Assignment definition:
+
+    Assignment::Assignment
+        (std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) :
+        lhs_ (std::move(l)),
+        rhs_ (std::move(r))
+    {
+    }
+
 // Return definition:
 
     Return::Return

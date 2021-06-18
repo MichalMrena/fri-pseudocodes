@@ -6,10 +6,11 @@
 
 namespace fri
 {
-    auto ExpressionVisitor::release_expression
-        () -> std::unique_ptr<Expression>
+    auto ExpressionVisitor::read_expression
+        (clang::Stmt* s) -> std::unique_ptr<Expression>
     {
-        return expression_ ? std::unique_ptr<Expression>(std::move(expression_))
+        this->TraverseStmt(s);
+        return expression_ ? std::move(expression_)
                            : std::make_unique<StringLiteral>("<unknown expression>");
     }
 
@@ -30,18 +31,15 @@ namespace fri
     auto ExpressionVisitor::VisitParenExpr
         (clang::ParenExpr* p) -> bool
     {
-        this->TraverseStmt(p->getSubExpr());
-        expression_ = std::make_unique<Parenthesis>(this->release_expression());
+        expression_ = std::make_unique<Parenthesis>(this->read_expression(p->getSubExpr()));
         return false;
     }
 
     auto ExpressionVisitor::VisitBinaryOperator
         (clang::BinaryOperator* b) -> bool
     {
-        this->TraverseStmt(b->getLHS());
-        auto lhs = this->release_expression();
-        this->TraverseStmt(b->getRHS());
-        auto rhs = this->release_expression();
+        auto lhs = this->read_expression(b->getLHS());
+        auto rhs = this->read_expression(b->getRHS());
         auto const op = switch_operator(b->getOpcode());
         expression_ = std::make_unique<BinaryOperator>(std::move(lhs), op, std::move(rhs));
         return false;
@@ -51,6 +49,13 @@ namespace fri
         (clang::DeclRefExpr* r) -> bool
     {
         expression_ = std::make_unique<VarRef>(r->getNameInfo().getAsString());
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitCXXDependentScopeMemberExpr
+        (clang::CXXDependentScopeMemberExpr* r) -> bool
+    {
+        expression_ = std::make_unique<VarRef>(r->getMemberNameInfo().getAsString());
         return false;
     }
 }

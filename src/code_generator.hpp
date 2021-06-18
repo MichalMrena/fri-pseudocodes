@@ -65,7 +65,7 @@ namespace fri
         virtual auto end_line () -> void = 0;
 
         /**
-         *  @brief Prints an empty to the output.
+         *  @brief Prints an empty line to the output.
          */
         virtual auto blank_line () -> void = 0;
 
@@ -139,9 +139,11 @@ namespace fri
         auto visit (CompoundStatement const& c)  -> void override;
         auto visit (ExpressionStatement const&)  -> void override;
         auto visit (Return const&)               -> void override;
+        auto visit (Assignment const&)           -> void override;
 
     private:
-        auto op_to_string (BinOpcode) const -> std::string;
+        static auto op_to_string   (BinOpcode) -> std::string;
+        static auto is_compound_op (BinOpcode) -> bool;
 
     private:
         ICodePrinter*        out_;

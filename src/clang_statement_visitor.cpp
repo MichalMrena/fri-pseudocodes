@@ -42,8 +42,7 @@ namespace fri
         auto const init = decl->getInit();
         if (init)
         {
-            expressioner_.TraverseStmt(init);
-            def->var_.initializer_ = expressioner_.release_expression();
+            def->var_.initializer_ = expressioner_.read_expression(init);
         }
 
         statement_ = std::move(def);
@@ -53,8 +52,18 @@ namespace fri
     auto StatementVisitor::VisitReturnStmt
         (clang::ReturnStmt* ret) -> bool
     {
-        expressioner_.TraverseStmt(ret->getRetValue());
-        statement_ = std::make_unique<Return>(expressioner_.release_expression());
+        statement_ = std::make_unique<Return>(expressioner_.read_expression(ret->getRetValue()));
+        return false;
+    }
+
+    auto StatementVisitor::VisitCompoundAssignOperator
+        (clang::CompoundAssignOperator* ca) -> bool
+    {
+        auto const op = switch_operator(ca->getOpcode());
+        auto lhs      = expressioner_.read_expression(ca->getLHS());
+        auto rhs      = expressioner_.read_expression(ca->getRHS());
+        auto expr     = std::make_unique<BinaryOperator>(std::move(lhs), op, std::move(rhs));
+        statement_    = std::make_unique<ExpressionStatement>(std::move(expr));
         return false;
     }
 }

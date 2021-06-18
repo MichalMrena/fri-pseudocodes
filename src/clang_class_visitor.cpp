@@ -73,7 +73,10 @@ namespace fri
                 {
                     statementer_.TraverseStmt(body);
                     auto const compound = statementer_.release_compound();
-                    m.body_ = std::move(*compound);
+                    if (compound)
+                    {
+                        m.body_ = std::move(*compound);
+                    }
                 }
             }
         }

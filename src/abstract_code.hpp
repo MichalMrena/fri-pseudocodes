@@ -89,7 +89,9 @@ namespace fri
 
     enum class BinOpcode
     {
-        Add, Sub, Mul, Div, Mod, And, Or, LT, LE, GT, GE, EQ, NE, Unknown
+        Add, Sub, Mul, Div, Mod, And, Or, LT, LE, GT, GE, EQ, NE,
+        AddAssign, SubAssign, MulAssign, DivAssign, ModAssign,
+        Unknown
     };
 
     struct BinaryOperator : public VisitableFamily<Expression, BinaryOperator>
@@ -138,6 +140,13 @@ namespace fri
         VarDefCommon var_;
     };
 
+    struct Assignment : public VisitableFamily<Statement, Assignment>
+    {
+        std::unique_ptr<Expression> lhs_;
+        std::unique_ptr<Expression> rhs_;
+        Assignment (std::unique_ptr<Expression>, std::unique_ptr<Expression>);
+    };
+
     struct CompoundStatement : public VisitableFamily<Statement, CompoundStatement>
     {
         std::vector<std::unique_ptr<Statement>> statements_;
@@ -162,11 +171,13 @@ namespace fri
 
     struct WhileLoop : public VisitableFamily<Statement, WhileLoop>
     {
+        std::unique_ptr<Expression> condition_;
         CompoundStatement body_;
     };
 
     struct DoWhileLoop : public VisitableFamily<Statement, DoWhileLoop>
     {
+        std::unique_ptr<Expression> condition_;
         CompoundStatement body_;
     };
 
@@ -239,6 +250,7 @@ namespace fri
         virtual auto visit (CompoundStatement const&)   -> void = 0;
         virtual auto visit (ExpressionStatement const&) -> void = 0;
         virtual auto visit (Return const&)              -> void = 0;
+        virtual auto visit (Assignment const&)          -> void = 0;
     };
 
     template<class Derived>

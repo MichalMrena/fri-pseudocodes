@@ -16,13 +16,14 @@ namespace fri
     class ExpressionVisitor : public clang::RecursiveASTVisitor<ExpressionVisitor>
     {
     public:
-        auto release_expression   () -> std::unique_ptr<Expression>;
+        auto read_expression (clang::Stmt*) -> std::unique_ptr<Expression>;
 
-        auto VisitIntegerLiteral  (clang::IntegerLiteral*)  -> bool;
-        auto VisitFloatingLiteral (clang::FloatingLiteral*) -> bool;
-        auto VisitParenExpr       (clang::ParenExpr*)       -> bool;
-        auto VisitBinaryOperator  (clang::BinaryOperator*)  -> bool;
-        auto VisitDeclRefExpr     (clang::DeclRefExpr*)     -> bool;
+        auto VisitIntegerLiteral              (clang::IntegerLiteral*)              -> bool;
+        auto VisitFloatingLiteral             (clang::FloatingLiteral*)             -> bool;
+        auto VisitParenExpr                   (clang::ParenExpr*)                   -> bool;
+        auto VisitBinaryOperator              (clang::BinaryOperator*)              -> bool;
+        auto VisitDeclRefExpr                 (clang::DeclRefExpr*)                 -> bool;
+        auto VisitCXXDependentScopeMemberExpr (clang::CXXDependentScopeMemberExpr*) -> bool;
 
     private:
         std::unique_ptr<Expression> expression_;

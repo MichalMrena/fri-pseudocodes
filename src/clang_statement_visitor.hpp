@@ -20,9 +20,10 @@ namespace fri
         auto release_statement () -> std::unique_ptr<Statement>;
         auto release_compound  () -> std::unique_ptr<CompoundStatement>;
 
-        auto VisitCompoundStmt (clang::CompoundStmt*) -> bool;
-        auto VisitVarDecl      (clang::VarDecl*)      -> bool;
-        auto VisitReturnStmt   (clang::ReturnStmt*)   -> bool;
+        auto VisitCompoundStmt           (clang::CompoundStmt*)           -> bool;
+        auto VisitVarDecl                (clang::VarDecl*)                -> bool;
+        auto VisitReturnStmt             (clang::ReturnStmt*)             -> bool;
+        auto VisitCompoundAssignOperator (clang::CompoundAssignOperator*) -> bool;
 
     private:
         std::unique_ptr<Statement>         statement_ {};
