@@ -24,6 +24,9 @@ namespace fri
         auto VisitVarDecl                (clang::VarDecl*)                -> bool;
         auto VisitReturnStmt             (clang::ReturnStmt*)             -> bool;
         auto VisitCompoundAssignOperator (clang::CompoundAssignOperator*) -> bool;
+        auto VisitIfStmt                 (clang::IfStmt*)                 -> bool;
+        auto VisitWhileStmt              (clang::WhileStmt*)              -> bool;
+        auto VisitDoStmt                 (clang::DoStmt*)                 -> bool;
 
     private:
         std::unique_ptr<Statement>         statement_ {};

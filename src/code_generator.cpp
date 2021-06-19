@@ -237,13 +237,21 @@ namespace fri
         out_->inc_indent();
 
         // Visit methods.
-        for (auto const& m : c.methods_)
+        auto const end = std::end(c.methods_);
+        auto it = std::begin(c.methods_);
+        while (it != end)
         {
-            m.accept(*this);
-        }
-        if (not c.methods_.empty())
-        {
-            out_->blank_line();
+            it->accept(*this);
+            ++it;
+
+            if (it != end)
+            {
+                out_->blank_line();
+            }
+            else if (not c.fields_.empty())
+            {
+                out_->blank_line();
+            }
         }
 
         // Visit fields.
@@ -297,14 +305,21 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
-        (WhileLoop const&) -> void
+        (WhileLoop const& w) -> void
     {
-
+        out_->out("Pokiaľ ", colors_->keyword_);
+        w.loop_.condition_->accept(*this);
+        out_->out(" rob", colors_->keyword_);
+        w.loop_.body_.accept(*this);
     }
 
     auto PseudocodeGenerator::visit
-        (DoWhileLoop const&) -> void
+        (DoWhileLoop const& d) -> void
     {
+        out_->out("Rob", colors_->keyword_);
+        d.loop_.body_.accept(*this);
+        out_->out(" pokiaľ ", colors_->keyword_);
+        d.loop_.condition_->accept(*this);
     }
 
     auto PseudocodeGenerator::visit
@@ -359,7 +374,6 @@ namespace fri
         out_->dec_indent();
         out_->begin_line();
         out_->out("}", colors_->plain_);
-        out_->end_line();
     }
 
     auto PseudocodeGenerator::visit
@@ -381,6 +395,20 @@ namespace fri
         a.lhs_->accept(*this);
         out_->out(" <- ", colors_->plain_);
         a.rhs_->accept(*this);
+    }
+
+    auto PseudocodeGenerator::visit
+        (If const& i) -> void
+    {
+        out_->out("Ak ", colors_->keyword_);
+        i.condition_->accept(*this);
+        out_->out(" potom", colors_->keyword_);
+        i.then_.accept(*this);
+        if (i.else_)
+        {
+            out_->out(" inak", colors_->keyword_);
+            i.else_.value().accept(*this);
+        }
     }
 
     auto PseudocodeGenerator::op_to_string

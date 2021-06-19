@@ -150,12 +150,23 @@ namespace fri
     struct CompoundStatement : public VisitableFamily<Statement, CompoundStatement>
     {
         std::vector<std::unique_ptr<Statement>> statements_;
+        CompoundStatement (std::unique_ptr<Statement>);
+        CompoundStatement (std::vector<std::unique_ptr<Statement>>);
     };
 
     struct Return : public VisitableFamily<Statement, Return>
     {
         std::unique_ptr<Expression> expression_;
         Return (std::unique_ptr<Expression>);
+    };
+
+    struct If : public VisitableFamily<Statement, If>
+    {
+        std::unique_ptr<Expression> condition_;
+        CompoundStatement then_;
+        std::optional<CompoundStatement> else_ {};
+        If (std::unique_ptr<Expression>, CompoundStatement);
+        If (std::unique_ptr<Expression>, CompoundStatement, CompoundStatement);
     };
 
     struct ExpressionStatement : public VisitableFamily<Statement, ExpressionStatement>
@@ -169,16 +180,22 @@ namespace fri
         CompoundStatement body_;
     };
 
-    struct WhileLoop : public VisitableFamily<Statement, WhileLoop>
+    struct CondLoop
     {
         std::unique_ptr<Expression> condition_;
         CompoundStatement body_;
     };
 
+    struct WhileLoop : public VisitableFamily<Statement, WhileLoop>
+    {
+        CondLoop loop_;
+        WhileLoop (std::unique_ptr<Expression>, CompoundStatement);
+    };
+
     struct DoWhileLoop : public VisitableFamily<Statement, DoWhileLoop>
     {
-        std::unique_ptr<Expression> condition_;
-        CompoundStatement body_;
+        CondLoop loop_;
+        DoWhileLoop (std::unique_ptr<Expression>, CompoundStatement);
     };
 
 // Other:
@@ -251,6 +268,7 @@ namespace fri
         virtual auto visit (ExpressionStatement const&) -> void = 0;
         virtual auto visit (Return const&)              -> void = 0;
         virtual auto visit (Assignment const&)          -> void = 0;
+        virtual auto visit (If const&)                  -> void = 0;
     };
 
     template<class Derived>

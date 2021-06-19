@@ -140,6 +140,7 @@ namespace fri
         auto visit (ExpressionStatement const&)  -> void override;
         auto visit (Return const&)               -> void override;
         auto visit (Assignment const&)           -> void override;
+        auto visit (If const&)                   -> void override;
 
     private:
         static auto op_to_string   (BinOpcode) -> std::string;

@@ -89,6 +89,20 @@ namespace fri
     {
     }
 
+// CompoundStatement definitions:
+
+    CompoundStatement::CompoundStatement
+        (std::unique_ptr<Statement> s)
+    {
+        statements_.emplace_back(std::move(s));
+    }
+
+    CompoundStatement::CompoundStatement
+        (std::vector<std::unique_ptr<Statement>> ss) :
+        statements_ (std::move(ss))
+    {
+    }
+
 // Return definition:
 
     Return::Return
@@ -97,11 +111,44 @@ namespace fri
     {
     }
 
+// If definitions:
+
+    If::If
+        (std::unique_ptr<Expression> c, CompoundStatement t) :
+        condition_ (std::move(c)),
+        then_      (std::move(t))
+    {
+    }
+
+    If::If
+        (std::unique_ptr<Expression> c, CompoundStatement t, CompoundStatement e) :
+        condition_ (std::move(c)),
+        then_      (std::move(t)),
+        else_      (std::move(e))
+    {
+    }
+
 // ExpressionStatement definition:
 
     ExpressionStatement::ExpressionStatement
         (std::unique_ptr<Expression> expression) :
         expression_ (std::move(expression))
+    {
+    }
+
+// WhileLoop definition:
+
+    WhileLoop::WhileLoop
+        (std::unique_ptr<Expression> c, CompoundStatement b) :
+        loop_ {std::move(c), std::move(b)}
+    {
+    }
+
+// DoWhileLoop definition:
+
+    DoWhileLoop::DoWhileLoop
+        (std::unique_ptr<Expression> c, CompoundStatement b) :
+        loop_ {std::move(c), std::move(b)}
     {
     }
 
