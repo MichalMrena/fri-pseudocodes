@@ -136,6 +136,17 @@ namespace fri
     {
     }
 
+// ForLoop definitions:
+
+    ForLoop::ForLoop
+        (std::unique_ptr<Statement> var, std::unique_ptr<Expression> cond, std::unique_ptr<Expression> inc, CompoundStatement b) :
+        var_  (std::move(var)),
+        cond_ (std::move(cond)),
+        inc_  (std::move(inc)),
+        body_ (std::move(b))
+    {
+    }
+
 // WhileLoop definition:
 
     WhileLoop::WhileLoop

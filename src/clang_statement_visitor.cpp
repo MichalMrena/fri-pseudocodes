@@ -16,6 +16,13 @@ namespace fri
         return std::unique_ptr<Statement>(std::move(statement_));
     }
 
+    auto StatementVisitor::read_statement
+        (clang::Stmt* s) -> std::unique_ptr<Statement>
+    {
+        this->TraverseStmt(s);
+        return this->release_statement();
+    }
+
     auto StatementVisitor::VisitCompoundStmt
         (clang::CompoundStmt* compound) -> bool
     {
@@ -121,6 +128,31 @@ namespace fri
             auto b = this->release_statement();
             statement_ = std::make_unique<DoWhileLoop>(std::move(c), CompoundStatement(std::move(b)));
         }
+        return false;
+    }
+
+    auto StatementVisitor::VisitForStmt
+        (clang::ForStmt* f) -> bool
+    {
+        auto const varp  = f->getInit();
+        auto const condp = f->getCond();
+        auto const incp  = f->getInc();
+
+        auto var   = not varp  ? std::unique_ptr<Statement>()  : this->read_statement(varp);
+        auto cond  = not condp ? std::unique_ptr<Expression>() : expressioner_.read_expression(condp);
+        auto inc   = not incp  ? std::unique_ptr<Expression>() : expressioner_.read_expression(incp);
+        auto body  = [this, f]()
+        {
+            this->TraverseStmt(f->getBody());
+            auto cb = this->release_compound();
+            return cb ? std::move(cb) : [this]()
+            {
+                auto b = this->release_statement();
+                return std::make_unique<CompoundStatement>(std::move(b));
+            }();
+        }();
+
+        statement_ = std::make_unique<ForLoop>(std::move(var), std::move(cond), std::move(inc), std::move(*body));
         return false;
     }
 }

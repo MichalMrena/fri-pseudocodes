@@ -299,9 +299,28 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
-        (ForLoop const&) -> void
+        (ForLoop const& f) -> void
     {
-
+        out_->out("Pre ", colors_->keyword_);
+        if (f.var_)
+        {
+            f.var_->accept(*this);
+        }
+            else
+            {
+                out_->out("null");
+            }
+        out_->out(" pokiaľ ", colors_->keyword_);
+        if (f.cond_)
+        {
+            f.cond_->accept(*this);
+        }
+        out_->out(" pričom ", colors_->keyword_);
+        if (f.inc_)
+        {
+            f.inc_->accept(*this);
+        }
+        f.body_.accept(*this);
     }
 
     auto PseudocodeGenerator::visit

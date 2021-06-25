@@ -177,7 +177,11 @@ namespace fri
 
     struct ForLoop : public VisitableFamily<Statement, ForLoop>
     {
-        CompoundStatement body_;
+        std::unique_ptr<Statement>  var_;
+        std::unique_ptr<Expression> cond_;
+        std::unique_ptr<Expression> inc_;
+        CompoundStatement           body_;
+        ForLoop (std::unique_ptr<Statement>, std::unique_ptr<Expression>, std::unique_ptr<Expression>, CompoundStatement);
     };
 
     struct CondLoop
