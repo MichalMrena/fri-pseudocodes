@@ -28,29 +28,35 @@ namespace fri
         {
             return std::make_unique<CustomType>(qt.getAsString());
         }
+        else if (t->isDependentType())
+        {
+            return std::make_unique<CustomType>(qt.getAsString());
+        }
         else
         {
             return std::make_unique<PrimType>("<unknown type>");
         }
     }
 
-    auto switch_operator (clang::BinaryOperatorKind op) -> BinOpcode
+    auto switch_bin_operator (clang::BinaryOperatorKind const op) -> BinOpcode
     {
         switch (op)
         {
-            case clang::BinaryOperatorKind::BO_Add: return BinOpcode::Add;
-            case clang::BinaryOperatorKind::BO_Sub: return BinOpcode::Sub;
-            case clang::BinaryOperatorKind::BO_Mul: return BinOpcode::Mul;
-            case clang::BinaryOperatorKind::BO_Div: return BinOpcode::Div;
-            case clang::BinaryOperatorKind::BO_Rem: return BinOpcode::Mod;
-            case clang::BinaryOperatorKind::BO_And: return BinOpcode::And;
-            case clang::BinaryOperatorKind::BO_Or:  return BinOpcode::Or;
-            case clang::BinaryOperatorKind::BO_LT:  return BinOpcode::LT;
-            case clang::BinaryOperatorKind::BO_LE:  return BinOpcode::LE;
-            case clang::BinaryOperatorKind::BO_GT:  return BinOpcode::GT;
-            case clang::BinaryOperatorKind::BO_GE:  return BinOpcode::GE;
-            case clang::BinaryOperatorKind::BO_EQ:  return BinOpcode::EQ;
-            case clang::BinaryOperatorKind::BO_NE:  return BinOpcode::NE;
+            case clang::BinaryOperatorKind::BO_Add:  return BinOpcode::Add;
+            case clang::BinaryOperatorKind::BO_Sub:  return BinOpcode::Sub;
+            case clang::BinaryOperatorKind::BO_Mul:  return BinOpcode::Mul;
+            case clang::BinaryOperatorKind::BO_Div:  return BinOpcode::Div;
+            case clang::BinaryOperatorKind::BO_Rem:  return BinOpcode::Mod;
+            case clang::BinaryOperatorKind::BO_LAnd: return BinOpcode::And;
+            case clang::BinaryOperatorKind::BO_LOr:  return BinOpcode::Or;
+            case clang::BinaryOperatorKind::BO_LT:   return BinOpcode::LT;
+            case clang::BinaryOperatorKind::BO_LE:   return BinOpcode::LE;
+            case clang::BinaryOperatorKind::BO_GT:   return BinOpcode::GT;
+            case clang::BinaryOperatorKind::BO_GE:   return BinOpcode::GE;
+            case clang::BinaryOperatorKind::BO_EQ:   return BinOpcode::EQ;
+            case clang::BinaryOperatorKind::BO_NE:   return BinOpcode::NE;
+
+            case clang::BinaryOperatorKind::BO_Assign: return BinOpcode::Assign;
 
             case clang::BinaryOperatorKind::BO_AddAssign: return BinOpcode::AddAssign;
             case clang::BinaryOperatorKind::BO_SubAssign: return BinOpcode::SubAssign;
@@ -59,6 +65,22 @@ namespace fri
             case clang::BinaryOperatorKind::BO_RemAssign: return BinOpcode::ModAssign;
 
             default: return BinOpcode::Unknown;
+        }
+    }
+
+    auto switch_un_operator (clang::UnaryOperatorKind const op) -> UnOpcode
+    {
+        switch (op)
+        {
+            case clang::UnaryOperatorKind::UO_PreInc:  return UnOpcode::IncPre;
+            case clang::UnaryOperatorKind::UO_PostInc: return UnOpcode::IncPost;
+            case clang::UnaryOperatorKind::UO_PreDec:  return UnOpcode::DecPre;
+            case clang::UnaryOperatorKind::UO_PostDec: return UnOpcode::DecPost;
+            case clang::UnaryOperatorKind::UO_LNot:    return UnOpcode::LogNot;
+            case clang::UnaryOperatorKind::UO_Deref:   return UnOpcode::Deref;
+            case clang::UnaryOperatorKind::UO_AddrOf:  return UnOpcode::Address;
+            case clang::UnaryOperatorKind::UO_Minus:   return UnOpcode::ArNot;
+            default: return UnOpcode::Unknown;
         }
     }
 }

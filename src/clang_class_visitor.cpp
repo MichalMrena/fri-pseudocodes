@@ -8,9 +8,10 @@ namespace fri
         ( clang::ASTContext& context
         , std::vector<std::unique_ptr<Class>>& classes
         , std::vector<std::string> const& namespaces ) :
-        classes_    (&classes),
-        namespaces_ (&namespaces),
-        context_    (&context)
+        classes_     (&classes),
+        namespaces_  (&namespaces),
+        context_     (&context),
+        statementer_ (context)
     {
     }
 

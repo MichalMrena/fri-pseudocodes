@@ -1,9 +1,15 @@
 #include "clang_statement_visitor.hpp"
-
 #include "clang_utils.hpp"
+#include <iostream>
 
 namespace fri
 {
+    StatementVisitor::StatementVisitor
+        (clang::ASTContext& c) :
+        context_ (&c)
+    {
+    }
+
     auto StatementVisitor::release_compound
         () -> std::unique_ptr<CompoundStatement>
     {
@@ -66,11 +72,7 @@ namespace fri
     auto StatementVisitor::VisitCompoundAssignOperator
         (clang::CompoundAssignOperator* ca) -> bool
     {
-        auto const op = switch_operator(ca->getOpcode());
-        auto lhs      = expressioner_.read_expression(ca->getLHS());
-        auto rhs      = expressioner_.read_expression(ca->getRHS());
-        auto expr     = std::make_unique<BinaryOperator>(std::move(lhs), op, std::move(rhs));
-        statement_    = std::make_unique<ExpressionStatement>(std::move(expr));
+        statement_ = std::make_unique<ExpressionStatement>(expressioner_.read_expression(ca));
         return false;
     }
 
@@ -153,6 +155,70 @@ namespace fri
         }();
 
         statement_ = std::make_unique<ForLoop>(std::move(var), std::move(cond), std::move(inc), std::move(*body));
+        return false;
+    }
+
+    auto StatementVisitor::VisitUnaryOperator
+        (clang::UnaryOperator* uo) -> bool
+    {
+        statement_ = std::make_unique<ExpressionStatement>(expressioner_.read_expression(uo));
+        return false;
+    }
+
+    auto StatementVisitor::VisitCXXDeleteExpr
+        (clang::CXXDeleteExpr* d) -> bool
+    {
+        statement_ = std::make_unique<Delete>(expressioner_.read_expression(d->getArgument()));
+        return false;
+    }
+
+    auto StatementVisitor::VisitCallExpr
+        (clang::CallExpr* c) -> bool
+    {
+        auto fc = c->child_begin();
+        if (fc != c->child_end())
+        {
+            // TODO c->getCallReturnType(*context_).getTypePtr()->isVoidType()
+            // by malo vracať void (e.g. free()) ale je tam <dependent typename>
+            // v ideálnom prípade by sa pre void vracal ProcedureCall a inak
+            // ExpressionStatement(FunctionCall), ale zatiaľ je teda všetko procedúra...
+
+            auto name = std::string("");
+            if (auto const unr = clang::dyn_cast<clang::UnresolvedLookupExpr>(*fc))
+            {
+                name = unr->getName().getAsString();
+            }
+            else if (auto const m = clang::dyn_cast<clang::MemberExpr>(*fc))
+            {
+                name = m->getMemberNameInfo().getAsString();
+            }
+            else
+            {
+                name = "<unknown call type>";
+            }
+
+            auto args = std::vector<std::unique_ptr<Expression>>();
+            for (auto const arg : c->arguments())
+            {
+                args.emplace_back(expressioner_.read_expression(arg));
+            }
+
+            statement_ = std::make_unique<ProcedureCall>(std::move(name), std::move(args));
+        }
+        return false;
+    }
+
+    auto StatementVisitor::VisitBinaryOperator
+        (clang::BinaryOperator* const op) -> bool
+    {
+        statement_ = std::make_unique<ExpressionStatement>(expressioner_.read_expression(op));
+        return false;
+    }
+
+    auto StatementVisitor::VisitCXXThrowExpr
+        (clang::CXXThrowExpr* const) -> bool
+    {
+        statement_ = std::make_unique<Throw>();
         return false;
     }
 }

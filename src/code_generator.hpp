@@ -34,6 +34,7 @@ namespace fri
         Color customType_;
         Color primType_;
         Color string_;
+        Color valLiteral_;
     };
 
     /**
@@ -114,14 +115,20 @@ namespace fri
     class PseudocodeGenerator : public CodeVisitor
     {
     public:
-        PseudocodeGenerator (ICodePrinter&, CodeColorInfo const&);
+        PseudocodeGenerator (ICodePrinter&, CodeColorInfo);
 
         auto visit (IntLiteral const&)           -> void override;
         auto visit (FloatLiteral const&)         -> void override;
         auto visit (StringLiteral const&)        -> void override;
+        auto visit (NullLiteral const&)          -> void override;
+        auto visit (BoolLiteral const&)          -> void override;
         auto visit (BinaryOperator const&)       -> void override;
         auto visit (Parenthesis const&)          -> void override;
         auto visit (VarRef const&)               -> void override;
+        auto visit (UnaryOperator const&)        -> void override;
+        auto visit (New const&)                  -> void override;
+        auto visit (FunctionCall const&)         -> void override;
+        auto visit (BuiltinUnaryOperator const&) -> void override;
 
         auto visit (PrimType const&)             -> void override;
         auto visit (CustomType const&)           -> void override;
@@ -141,14 +148,23 @@ namespace fri
         auto visit (Return const&)               -> void override;
         auto visit (Assignment const&)           -> void override;
         auto visit (If const&)                   -> void override;
+        auto visit (Delete const&)               -> void override;
+        auto visit (ProcedureCall const&)        -> void override;
+        auto visit (Throw const&)                -> void override;
 
     private:
-        static auto op_to_string   (BinOpcode) -> std::string;
-        static auto is_compound_op (BinOpcode) -> bool;
+        static auto bin_op_to_string (BinOpcode)       -> std::string;
+        static auto un_op_to_string  (UnOpcode)        -> std::string;
+        static auto bun_op_to_string (BuiltinUnOpcode) -> std::string;
+        static auto is_compound_op   (BinOpcode)       -> bool;
+        static auto is_postfixx      (UnOpcode)        -> bool;
+
+        template<class InputIt>
+        auto visit_range (std::string_view, InputIt, InputIt) -> void;
 
     private:
-        ICodePrinter*        out_;
-        CodeColorInfo const* colors_;
+        ICodePrinter* out_;
+        CodeColorInfo colors_;
     };
 }
 

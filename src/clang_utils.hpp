@@ -13,8 +13,9 @@
 
 namespace fri
 {
-    auto extract_type (clang::QualType) -> std::unique_ptr<Type>;
-    auto switch_operator (clang::BinaryOperatorKind) -> BinOpcode;
+    auto extract_type        (clang::QualType)           -> std::unique_ptr<Type>;
+    auto switch_bin_operator (clang::BinaryOperatorKind) -> BinOpcode;
+    auto switch_un_operator  (clang::UnaryOperatorKind)  -> UnOpcode;
 }
 
 #endif

@@ -1,4 +1,4 @@
-// #include <stddef.h>
+#include <stddef.h>
 
 namespace mm
 {
@@ -21,13 +21,19 @@ namespace mm
     class Kruh : public Tvar, public Object, public ISerializable
     {
     public:
+        Kruh(int, int);
+
         double area () const override
         {
             return 3.14;
         }
 
-        int foo(int q);
+        int foo(int q, int a);
         int boo();
+        bool test()
+        {
+            return 1 || 0 && false or true;
+        }
 
     private:
         double radius_;
@@ -35,7 +41,7 @@ namespace mm
     };
 
     template<class T>
-    int Kruh<T>::foo(int q)
+    int Kruh<T>::foo(int q, int a)
     {
         if (q > 10)
         {
@@ -53,6 +59,7 @@ namespace mm
     template<class T>
     int Kruh<T>::boo()
     {
+        Kruh* k = new Kruh<T> (1, 2);
         int x = 1;
         int y = 2;
         do

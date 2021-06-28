@@ -6,6 +6,7 @@
 #include <memory>
 #include <cstdint>
 #include <optional>
+#include <variant>
 
 namespace fri
 {
@@ -87,10 +88,27 @@ namespace fri
         StringLiteral (std::string);
     };
 
+    struct NullLiteral : public VisitableFamily<Expression, NullLiteral>
+    {
+    };
+
+    struct BoolLiteral : public VisitableFamily<Expression, BoolLiteral>
+    {
+        bool val_;
+        BoolLiteral (bool);
+    };
+
     enum class BinOpcode
     {
         Add, Sub, Mul, Div, Mod, And, Or, LT, LE, GT, GE, EQ, NE,
         AddAssign, SubAssign, MulAssign, DivAssign, ModAssign,
+        Assign,
+        Unknown
+    };
+
+    enum class UnOpcode
+    {
+        IncPre, IncPost, DecPre, DecPost, LogNot, Deref, Address, ArNot,
         Unknown
     };
 
@@ -100,6 +118,13 @@ namespace fri
         std::unique_ptr<Expression> lhs_;
         std::unique_ptr<Expression> rhs_;
         BinaryOperator (std::unique_ptr<Expression>, BinOpcode, std::unique_ptr<Expression>);
+    };
+
+    struct UnaryOperator : public VisitableFamily<Expression, UnaryOperator>
+    {
+        UnOpcode                    op_;
+        std::unique_ptr<Expression> ex_;
+        UnaryOperator (UnOpcode, std::unique_ptr<Expression>);
     };
 
     struct Parenthesis : public VisitableFamily<Expression, Parenthesis>
@@ -112,6 +137,35 @@ namespace fri
     {
         std::string name_;
         VarRef (std::string);
+    };
+
+    struct New : public VisitableFamily<Expression, New>
+    {
+        std::unique_ptr<Type>                    type_;
+        std::vector<std::unique_ptr<Expression>> args_;
+        New (std::unique_ptr<Type>, std::vector<std::unique_ptr<Expression>>);
+    };
+
+    struct FunctionCall : public VisitableFamily<Expression, FunctionCall>
+    {
+        std::string                              name_;
+        std::vector<std::unique_ptr<Expression>> args_;
+        FunctionCall (std::string, std::vector<std::unique_ptr<Expression>>);
+    };
+
+    enum class BuiltinUnOpcode
+    {
+        Sizeof,
+        Unknown
+    };
+
+    struct BuiltinUnaryOperator : public VisitableFamily<Expression, BuiltinUnaryOperator>
+    {
+        using arg_variant = std::variant<std::unique_ptr<Expression>, std::unique_ptr<Type>>;
+        BuiltinUnOpcode op_;
+        arg_variant     arg_;
+        BuiltinUnaryOperator (BuiltinUnOpcode, std::unique_ptr<Expression>);
+        BuiltinUnaryOperator (BuiltinUnOpcode, std::unique_ptr<Type>);
     };
 
 // Other:
@@ -134,6 +188,19 @@ namespace fri
     };
 
 // Statements:
+
+    struct ProcedureCall : public VisitableFamily<Statement, ProcedureCall>
+    {
+        std::string                              name_;
+        std::vector<std::unique_ptr<Expression>> args_;
+        ProcedureCall (std::string, std::vector<std::unique_ptr<Expression>>);
+    };
+
+    struct Delete : public VisitableFamily<Statement, Delete>
+    {
+        std::unique_ptr<Expression> ex_;
+        Delete (std::unique_ptr<Expression>);
+    };
 
     struct VarDefinition : public VisitableFamily<Statement, VarDefinition>
     {
@@ -202,6 +269,10 @@ namespace fri
         DoWhileLoop (std::unique_ptr<Expression>, CompoundStatement);
     };
 
+    struct Throw : public VisitableFamily<Statement, Throw>
+    {
+    };
+
 // Other:
 
     struct Method : public Visitable<Method>
@@ -248,31 +319,40 @@ namespace fri
     public:
         virtual ~CodeVisitor () = default;
 
-        virtual auto visit (IntLiteral const&)          -> void = 0;
-        virtual auto visit (FloatLiteral const&)        -> void = 0;
-        virtual auto visit (StringLiteral const&)       -> void = 0;
-        virtual auto visit (BinaryOperator const&)      -> void = 0;
-        virtual auto visit (Parenthesis const&)         -> void = 0;
-        virtual auto visit (VarRef const&)              -> void = 0;
+        virtual auto visit (IntLiteral const&)           -> void = 0;
+        virtual auto visit (FloatLiteral const&)         -> void = 0;
+        virtual auto visit (StringLiteral const&)        -> void = 0;
+        virtual auto visit (NullLiteral const&)          -> void = 0;
+        virtual auto visit (BoolLiteral const&)          -> void = 0;
+        virtual auto visit (BinaryOperator const&)       -> void = 0;
+        virtual auto visit (Parenthesis const&)          -> void = 0;
+        virtual auto visit (VarRef const&)               -> void = 0;
+        virtual auto visit (UnaryOperator const&)        -> void = 0;
+        virtual auto visit (New const&)                  -> void = 0;
+        virtual auto visit (FunctionCall const&)         -> void = 0;
+        virtual auto visit (BuiltinUnaryOperator const&) -> void = 0;
 
-        virtual auto visit (PrimType const&)            -> void = 0;
-        virtual auto visit (CustomType const&)          -> void = 0;
-        virtual auto visit (Indirection const&)         -> void = 0;
+        virtual auto visit (PrimType const&)             -> void = 0;
+        virtual auto visit (CustomType const&)           -> void = 0;
+        virtual auto visit (Indirection const&)          -> void = 0;
 
-        virtual auto visit (Class const&)               -> void = 0;
-        virtual auto visit (Method const&)              -> void = 0;
-        virtual auto visit (VarDefCommon const&)        -> void = 0;
-        virtual auto visit (FieldDefinition const&)     -> void = 0;
-        virtual auto visit (ParamDefinition const&)     -> void = 0;
-        virtual auto visit (VarDefinition const&)       -> void = 0;
-        virtual auto visit (ForLoop const&)             -> void = 0;
-        virtual auto visit (WhileLoop const&)           -> void = 0;
-        virtual auto visit (DoWhileLoop const&)         -> void = 0;
-        virtual auto visit (CompoundStatement const&)   -> void = 0;
-        virtual auto visit (ExpressionStatement const&) -> void = 0;
-        virtual auto visit (Return const&)              -> void = 0;
-        virtual auto visit (Assignment const&)          -> void = 0;
-        virtual auto visit (If const&)                  -> void = 0;
+        virtual auto visit (Class const&)                -> void = 0;
+        virtual auto visit (Method const&)               -> void = 0;
+        virtual auto visit (VarDefCommon const&)         -> void = 0;
+        virtual auto visit (FieldDefinition const&)      -> void = 0;
+        virtual auto visit (ParamDefinition const&)      -> void = 0;
+        virtual auto visit (VarDefinition const&)        -> void = 0;
+        virtual auto visit (ForLoop const&)              -> void = 0;
+        virtual auto visit (WhileLoop const&)            -> void = 0;
+        virtual auto visit (DoWhileLoop const&)          -> void = 0;
+        virtual auto visit (CompoundStatement const&)    -> void = 0;
+        virtual auto visit (ExpressionStatement const&)  -> void = 0;
+        virtual auto visit (Return const&)               -> void = 0;
+        virtual auto visit (Assignment const&)           -> void = 0;
+        virtual auto visit (If const&)                   -> void = 0;
+        virtual auto visit (Delete const&)               -> void = 0;
+        virtual auto visit (ProcedureCall const&)        -> void = 0;
+        virtual auto visit (Throw const&)                -> void = 0;
     };
 
     template<class Derived>

@@ -4,15 +4,11 @@
 
 namespace fri
 {
-// PrimType definition:
-
     PrimType::PrimType
         (std::string name) :
         name_ (std::move(name))
     {
     }
-
-// CustomType definition:
 
     CustomType::CustomType
         (std::string name) :
@@ -20,15 +16,11 @@ namespace fri
     {
     }
 
-// Indirection definition:
-
     Indirection::Indirection
         (std::unique_ptr<Type> pointee) :
         pointee_ (std::move(pointee))
     {
     }
-
-// IntLiteral definitions:
 
     IntLiteral::IntLiteral
         (std::int64_t const i) :
@@ -36,23 +28,23 @@ namespace fri
     {
     }
 
-// FloatLiteral definition:
-
     FloatLiteral::FloatLiteral
         (double const d) :
         num_ (d)
     {
     }
 
-// StringLiteral definition:
+    BoolLiteral::BoolLiteral
+        (bool const b) :
+        val_ (b)
+    {
+    }
 
     StringLiteral::StringLiteral
         (std::string str) :
         str_ (std::move(str))
     {
     }
-
-// BinaryOperator definition:
 
     BinaryOperator::BinaryOperator
         ( std::unique_ptr<Expression> lhs
@@ -64,7 +56,13 @@ namespace fri
     {
     }
 
-// Parenthesis definition:
+    UnaryOperator::UnaryOperator
+        ( UnOpcode op
+        , std::unique_ptr<Expression> e ) :
+        op_ (op),
+        ex_ (std::move(e))
+    {
+    }
 
     Parenthesis::Parenthesis
         (std::unique_ptr<Expression> expression) :
@@ -72,15 +70,52 @@ namespace fri
     {
     }
 
-// VarRef definition:
-
     VarRef::VarRef
         (std::string name) :
         name_ (std::move(name))
     {
     }
 
-// Assignment definition:
+    New::New
+        (std::unique_ptr<Type> t, std::vector<std::unique_ptr<Expression>> as) :
+        type_ (std::move(t)),
+        args_ (std::move(as))
+    {
+    }
+
+    FunctionCall::FunctionCall
+        (std::string n, std::vector<std::unique_ptr<Expression>> as) :
+        name_ (std::move(n)),
+        args_ (std::move(as))
+    {
+    }
+
+    BuiltinUnaryOperator::BuiltinUnaryOperator
+        (BuiltinUnOpcode op, std::unique_ptr<Expression> ea) :
+        op_  (op),
+        arg_ (std::move(ea))
+    {
+    }
+
+    BuiltinUnaryOperator::BuiltinUnaryOperator
+        (BuiltinUnOpcode op, std::unique_ptr<Type> ta) :
+        op_  (op),
+        arg_ (std::move(ta))
+    {
+    }
+
+    ProcedureCall::ProcedureCall
+        (std::string n, std::vector<std::unique_ptr<Expression>> as) :
+        name_ (std::move(n)),
+        args_ (std::move(as))
+    {
+    }
+
+    Delete::Delete
+        (std::unique_ptr<Expression> ex) :
+        ex_ (std::move(ex))
+    {
+    }
 
     Assignment::Assignment
         (std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) :
@@ -88,8 +123,6 @@ namespace fri
         rhs_ (std::move(r))
     {
     }
-
-// CompoundStatement definitions:
 
     CompoundStatement::CompoundStatement
         (std::unique_ptr<Statement> s)
@@ -103,15 +136,11 @@ namespace fri
     {
     }
 
-// Return definition:
-
     Return::Return
         (std::unique_ptr<Expression> e) :
         expression_ (std::move(e))
     {
     }
-
-// If definitions:
 
     If::If
         (std::unique_ptr<Expression> c, CompoundStatement t) :
@@ -128,15 +157,11 @@ namespace fri
     {
     }
 
-// ExpressionStatement definition:
-
     ExpressionStatement::ExpressionStatement
         (std::unique_ptr<Expression> expression) :
         expression_ (std::move(expression))
     {
     }
-
-// ForLoop definitions:
 
     ForLoop::ForLoop
         (std::unique_ptr<Statement> var, std::unique_ptr<Expression> cond, std::unique_ptr<Expression> inc, CompoundStatement b) :
@@ -147,15 +172,11 @@ namespace fri
     {
     }
 
-// WhileLoop definition:
-
     WhileLoop::WhileLoop
         (std::unique_ptr<Expression> c, CompoundStatement b) :
         loop_ {std::move(c), std::move(b)}
     {
     }
-
-// DoWhileLoop definition:
 
     DoWhileLoop::DoWhileLoop
         (std::unique_ptr<Expression> c, CompoundStatement b) :
@@ -163,14 +184,10 @@ namespace fri
     {
     }
 
-// Method definitions:
-
     auto is_pure_virtual (Method const& m) -> bool
     {
         return not m.body_.has_value();
     }
-
-// Class definitions:
 
     Class::Class
         (std::string qualName) :
@@ -184,8 +201,6 @@ namespace fri
            and std::all_of(std::begin(c.bases_), std::end(c.bases_), [](auto const b){ return is_interface(*b); })
            and std::all_of(std::begin(c.methods_), std::end(c.methods_), [](auto const& m){ return is_pure_virtual(m); });
     }
-
-// TranslationUnit definitions:
 
     TranslationUnit::TranslationUnit
         (std::vector<std::unique_ptr<Class>> classes) :
