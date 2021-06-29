@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <iostream>
 #include <cassert>
+#include <algorithm>
 
 namespace fri
 {

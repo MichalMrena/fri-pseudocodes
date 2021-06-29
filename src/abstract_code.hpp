@@ -109,6 +109,7 @@ namespace fri
     enum class UnOpcode
     {
         IncPre, IncPost, DecPre, DecPost, LogNot, Deref, Address, ArNot,
+        Sizeof,
         Unknown
     };
 
@@ -122,9 +123,11 @@ namespace fri
 
     struct UnaryOperator : public VisitableFamily<Expression, UnaryOperator>
     {
-        UnOpcode                    op_;
-        std::unique_ptr<Expression> ex_;
+        using arg_variant = std::variant<std::unique_ptr<Expression>, std::unique_ptr<Type>>;
+        UnOpcode    op_;
+        arg_variant arg_;
         UnaryOperator (UnOpcode, std::unique_ptr<Expression>);
+        UnaryOperator (UnOpcode, std::unique_ptr<Type>);
     };
 
     struct Parenthesis : public VisitableFamily<Expression, Parenthesis>
@@ -137,6 +140,13 @@ namespace fri
     {
         std::string name_;
         VarRef (std::string);
+    };
+
+    struct MemberVarRef : public VisitableFamily<Expression, MemberVarRef>
+    {
+        std::unique_ptr<Expression> base_;
+        std::string                 name_;
+        MemberVarRef (std::unique_ptr<Expression>, std::string);
     };
 
     struct New : public VisitableFamily<Expression, New>
@@ -153,19 +163,22 @@ namespace fri
         FunctionCall (std::string, std::vector<std::unique_ptr<Expression>>);
     };
 
-    enum class BuiltinUnOpcode
+    struct DestructorCall : public VisitableFamily<Expression, DestructorCall>
     {
-        Sizeof,
-        Unknown
+        std::unique_ptr<Expression> ex_;
+        DestructorCall (std::unique_ptr<Expression>);
     };
 
-    struct BuiltinUnaryOperator : public VisitableFamily<Expression, BuiltinUnaryOperator>
+    struct MemberFunctionCall : public VisitableFamily<Expression, MemberFunctionCall>
     {
-        using arg_variant = std::variant<std::unique_ptr<Expression>, std::unique_ptr<Type>>;
-        BuiltinUnOpcode op_;
-        arg_variant     arg_;
-        BuiltinUnaryOperator (BuiltinUnOpcode, std::unique_ptr<Expression>);
-        BuiltinUnaryOperator (BuiltinUnOpcode, std::unique_ptr<Type>);
+        std::unique_ptr<Expression>              base_;
+        std::string                              call_;
+        std::vector<std::unique_ptr<Expression>> args_;
+        MemberFunctionCall (std::unique_ptr<Expression>, std::string, std::vector<std::unique_ptr<Expression>>);
+    };
+
+    struct This : public VisitableFamily<Expression, This>
+    {
     };
 
 // Other:
@@ -188,13 +201,6 @@ namespace fri
     };
 
 // Statements:
-
-    struct ProcedureCall : public VisitableFamily<Statement, ProcedureCall>
-    {
-        std::string                              name_;
-        std::vector<std::unique_ptr<Expression>> args_;
-        ProcedureCall (std::string, std::vector<std::unique_ptr<Expression>>);
-    };
 
     struct Delete : public VisitableFamily<Statement, Delete>
     {
@@ -327,10 +333,13 @@ namespace fri
         virtual auto visit (BinaryOperator const&)       -> void = 0;
         virtual auto visit (Parenthesis const&)          -> void = 0;
         virtual auto visit (VarRef const&)               -> void = 0;
+        virtual auto visit (MemberVarRef const&)         -> void = 0;
         virtual auto visit (UnaryOperator const&)        -> void = 0;
         virtual auto visit (New const&)                  -> void = 0;
         virtual auto visit (FunctionCall const&)         -> void = 0;
-        virtual auto visit (BuiltinUnaryOperator const&) -> void = 0;
+        virtual auto visit (DestructorCall const&)       -> void = 0;
+        virtual auto visit (MemberFunctionCall const&)   -> void = 0;
+        virtual auto visit (This const&)                 -> void = 0;
 
         virtual auto visit (PrimType const&)             -> void = 0;
         virtual auto visit (CustomType const&)           -> void = 0;
@@ -351,7 +360,6 @@ namespace fri
         virtual auto visit (Assignment const&)           -> void = 0;
         virtual auto visit (If const&)                   -> void = 0;
         virtual auto visit (Delete const&)               -> void = 0;
-        virtual auto visit (ProcedureCall const&)        -> void = 0;
         virtual auto visit (Throw const&)                -> void = 0;
     };
 

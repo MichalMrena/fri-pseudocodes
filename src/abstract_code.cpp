@@ -57,10 +57,18 @@ namespace fri
     }
 
     UnaryOperator::UnaryOperator
-        ( UnOpcode op
-        , std::unique_ptr<Expression> e ) :
-        op_ (op),
-        ex_ (std::move(e))
+        ( UnOpcode                    o
+        , std::unique_ptr<Expression> a) :
+        op_  (o),
+        arg_ (std::move(a))
+    {
+    }
+
+    UnaryOperator::UnaryOperator
+        ( UnOpcode              o
+        , std::unique_ptr<Type> a ) :
+        op_  (o),
+        arg_ (std::move(a))
     {
     }
 
@@ -76,37 +84,42 @@ namespace fri
     {
     }
 
+    MemberVarRef::MemberVarRef
+        ( std::unique_ptr<Expression> b
+        , std::string n ) :
+        base_ (std::move(b)),
+        name_ (std::move(n))
+    {
+    }
+
     New::New
-        (std::unique_ptr<Type> t, std::vector<std::unique_ptr<Expression>> as) :
+        ( std::unique_ptr<Type> t
+        , std::vector<std::unique_ptr<Expression>> as ) :
         type_ (std::move(t)),
         args_ (std::move(as))
     {
     }
 
     FunctionCall::FunctionCall
-        (std::string n, std::vector<std::unique_ptr<Expression>> as) :
+        ( std::string n
+        , std::vector<std::unique_ptr<Expression>> as ) :
         name_ (std::move(n)),
         args_ (std::move(as))
     {
     }
 
-    BuiltinUnaryOperator::BuiltinUnaryOperator
-        (BuiltinUnOpcode op, std::unique_ptr<Expression> ea) :
-        op_  (op),
-        arg_ (std::move(ea))
+    DestructorCall::DestructorCall
+        (std::unique_ptr<Expression> e) :
+        ex_ (std::move(e))
     {
     }
 
-    BuiltinUnaryOperator::BuiltinUnaryOperator
-        (BuiltinUnOpcode op, std::unique_ptr<Type> ta) :
-        op_  (op),
-        arg_ (std::move(ta))
-    {
-    }
-
-    ProcedureCall::ProcedureCall
-        (std::string n, std::vector<std::unique_ptr<Expression>> as) :
-        name_ (std::move(n)),
+    MemberFunctionCall::MemberFunctionCall
+        ( std::unique_ptr<Expression> e
+        , std::string c
+        , std::vector<std::unique_ptr<Expression>> as ) :
+        base_ (std::move(e)),
+        call_ (std::move(c)),
         args_ (std::move(as))
     {
     }
@@ -118,7 +131,8 @@ namespace fri
     }
 
     Assignment::Assignment
-        (std::unique_ptr<Expression> l, std::unique_ptr<Expression> r) :
+        ( std::unique_ptr<Expression> l
+        , std::unique_ptr<Expression> r ) :
         lhs_ (std::move(l)),
         rhs_ (std::move(r))
     {
@@ -143,14 +157,17 @@ namespace fri
     }
 
     If::If
-        (std::unique_ptr<Expression> c, CompoundStatement t) :
+        ( std::unique_ptr<Expression> c
+        , CompoundStatement t ) :
         condition_ (std::move(c)),
         then_      (std::move(t))
     {
     }
 
     If::If
-        (std::unique_ptr<Expression> c, CompoundStatement t, CompoundStatement e) :
+        ( std::unique_ptr<Expression> c
+        , CompoundStatement t
+        , CompoundStatement e) :
         condition_ (std::move(c)),
         then_      (std::move(t)),
         else_      (std::move(e))
@@ -164,7 +181,10 @@ namespace fri
     }
 
     ForLoop::ForLoop
-        (std::unique_ptr<Statement> var, std::unique_ptr<Expression> cond, std::unique_ptr<Expression> inc, CompoundStatement b) :
+        ( std::unique_ptr<Statement>  var
+        , std::unique_ptr<Expression> cond
+        , std::unique_ptr<Expression> inc
+        , CompoundStatement           b ) :
         var_  (std::move(var)),
         cond_ (std::move(cond)),
         inc_  (std::move(inc)),
@@ -173,7 +193,8 @@ namespace fri
     }
 
     WhileLoop::WhileLoop
-        (std::unique_ptr<Expression> c, CompoundStatement b) :
+        ( std::unique_ptr<Expression> c
+        , CompoundStatement b ) :
         loop_ {std::move(c), std::move(b)}
     {
     }

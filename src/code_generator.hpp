@@ -125,10 +125,13 @@ namespace fri
         auto visit (BinaryOperator const&)       -> void override;
         auto visit (Parenthesis const&)          -> void override;
         auto visit (VarRef const&)               -> void override;
+        auto visit (MemberVarRef const&)         -> void override;
         auto visit (UnaryOperator const&)        -> void override;
         auto visit (New const&)                  -> void override;
         auto visit (FunctionCall const&)         -> void override;
-        auto visit (BuiltinUnaryOperator const&) -> void override;
+        auto visit (DestructorCall const&)       -> void override;
+        auto visit (MemberFunctionCall const&)   -> void override;
+        auto visit (This const&)                 -> void override;
 
         auto visit (PrimType const&)             -> void override;
         auto visit (CustomType const&)           -> void override;
@@ -149,15 +152,15 @@ namespace fri
         auto visit (Assignment const&)           -> void override;
         auto visit (If const&)                   -> void override;
         auto visit (Delete const&)               -> void override;
-        auto visit (ProcedureCall const&)        -> void override;
         auto visit (Throw const&)                -> void override;
 
     private:
-        static auto bin_op_to_string (BinOpcode)       -> std::string;
-        static auto un_op_to_string  (UnOpcode)        -> std::string;
-        static auto bun_op_to_string (BuiltinUnOpcode) -> std::string;
-        static auto is_compound_op   (BinOpcode)       -> bool;
-        static auto is_postfixx      (UnOpcode)        -> bool;
+        static auto bin_op_to_string (BinOpcode)        -> std::string;
+        static auto un_op_to_string  (UnOpcode)         -> std::string;
+        static auto is_compound_op   (BinOpcode)        -> bool;
+        static auto is_postfixx      (UnOpcode)         -> bool;
+
+        auto op_color (std::string_view) -> Color;
 
         template<class InputIt>
         auto visit_range (std::string_view, InputIt, InputIt) -> void;

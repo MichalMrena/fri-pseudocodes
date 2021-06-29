@@ -25,6 +25,8 @@ namespace fri
         auto VisitUnaryOperator               (clang::UnaryOperator*)               -> bool;
         auto VisitCompoundAssignOperator      (clang::CompoundAssignOperator*)      -> bool;
         auto VisitUnaryExprOrTypeTraitExpr    (clang::UnaryExprOrTypeTraitExpr*)    -> bool;
+        auto VisitCXXThisExpr                 (clang::CXXThisExpr*)                 -> bool;
+        auto VisitCallExpr                    (clang::CallExpr*)                     -> bool;
 
     private:
         std::unique_ptr<Expression> expression_;

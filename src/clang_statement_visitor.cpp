@@ -175,36 +175,7 @@ namespace fri
     auto StatementVisitor::VisitCallExpr
         (clang::CallExpr* c) -> bool
     {
-        auto fc = c->child_begin();
-        if (fc != c->child_end())
-        {
-            // TODO c->getCallReturnType(*context_).getTypePtr()->isVoidType()
-            // by malo vracať void (e.g. free()) ale je tam <dependent typename>
-            // v ideálnom prípade by sa pre void vracal ProcedureCall a inak
-            // ExpressionStatement(FunctionCall), ale zatiaľ je teda všetko procedúra...
-
-            auto name = std::string("");
-            if (auto const unr = clang::dyn_cast<clang::UnresolvedLookupExpr>(*fc))
-            {
-                name = unr->getName().getAsString();
-            }
-            else if (auto const m = clang::dyn_cast<clang::MemberExpr>(*fc))
-            {
-                name = m->getMemberNameInfo().getAsString();
-            }
-            else
-            {
-                name = "<unknown call type>";
-            }
-
-            auto args = std::vector<std::unique_ptr<Expression>>();
-            for (auto const arg : c->arguments())
-            {
-                args.emplace_back(expressioner_.read_expression(arg));
-            }
-
-            statement_ = std::make_unique<ProcedureCall>(std::move(name), std::move(args));
-        }
+        statement_ = std::make_unique<ExpressionStatement>(expressioner_.read_expression(c));
         return false;
     }
 

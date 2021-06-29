@@ -67,7 +67,8 @@ namespace fri
     auto ExpressionVisitor::VisitMemberExpr
         (clang::MemberExpr* const m) -> bool
     {
-        expression_ = std::make_unique<VarRef>(m->getMemberNameInfo().getAsString());
+        auto base = m->isImplicitAccess() ? std::make_unique<This>() : this->read_expression(m->getBase());
+        expression_ = std::make_unique<MemberVarRef>(std::move(base), m->getMemberNameInfo().getAsString());
         return false;
     }
 
@@ -122,11 +123,11 @@ namespace fri
         if (uo->isArgumentType())
         {
             // TODO Zatiaľ neviem ako zistiť, že je to naozaj sizeof..., ale iné asi nepoužívame
-            expression_ = std::make_unique<BuiltinUnaryOperator>(BuiltinUnOpcode::Sizeof, extract_type(uo->getArgumentType()));
+            expression_ = std::make_unique<UnaryOperator>(UnOpcode::Sizeof, extract_type(uo->getArgumentType()));
         }
         else
         {
-            expression_ = std::make_unique<BuiltinUnaryOperator>(BuiltinUnOpcode::Unknown, this->read_expression(uo->getArgumentExpr()));
+            expression_ = std::make_unique<UnaryOperator>(UnOpcode::Unknown, this->read_expression(uo->getArgumentExpr()));
         }
         return false;
     }
@@ -135,6 +136,75 @@ namespace fri
         (clang::CXXNullPtrLiteralExpr* const) -> bool
     {
         expression_ = std::make_unique<NullLiteral>();
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitCXXThisExpr
+        (clang::CXXThisExpr* const) -> bool
+    {
+        expression_ = std::make_unique<This>();
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitCallExpr
+        (clang::CallExpr* const c) -> bool
+    {
+        // Je tu trochu technický problém lebo void(...) funkcie nie sú po správnosti Expression.
+        // Budeme sa ale tváriť, že namiesto void vracajú unit...
+
+        auto const make_args = [this](auto&& as)
+        {
+            auto args = std::vector<std::unique_ptr<Expression>>();
+            for (auto const arg : as)
+            {
+                args.emplace_back(this->read_expression(arg));
+            }
+            return args;
+        };
+
+        if (auto const o = clang::dyn_cast<clang::CXXOperatorCallExpr>(c))
+        {
+            if (o->getOperator() == clang::OverloadedOperatorKind::OO_Equal) // TODO is infix
+            {
+                auto lhs    = o->getNumArgs() > 0 ? this->read_expression(o->getArg(0)) : std::make_unique<VarRef>("<not good>");
+                auto rhs    = o->getNumArgs() > 1 ? this->read_expression(o->getArg(1)) : std::make_unique<VarRef>("<not good>");
+                expression_ = std::make_unique<BinaryOperator>(std::move(lhs), BinOpcode::Assign, std::move(rhs));
+            }
+            return false;
+        }
+
+        auto fc = c->child_begin();
+        if (fc != c->child_end())
+        {
+            if (auto const d = clang::dyn_cast<clang::CXXPseudoDestructorExpr>(*fc))
+            {
+                expression_ = std::make_unique<DestructorCall>(this->read_expression(d->getBase()));
+            }
+            else if (auto const um = clang::dyn_cast<clang::UnresolvedMemberExpr>(*fc))
+            {
+                auto base   = um->isImplicitAccess() ? std::make_unique<This>() : this->read_expression(um->getBase());
+                auto name   = um->getMemberNameInfo().getAsString();
+                auto args   = make_args(c->arguments());
+                expression_ = std::make_unique<MemberFunctionCall>(std::move(base), std::move(name), std::move(args));
+            }
+            else if (auto const m = clang::dyn_cast<clang::MemberExpr>(*fc))
+            {
+                auto base   = m->isImplicitAccess() ? std::make_unique<This>() : this->read_expression(m->getBase());
+                auto name   = m->getMemberNameInfo().getAsString();
+                auto args   = make_args(c->arguments());
+                expression_ = std::make_unique<MemberFunctionCall>(std::move(base), std::move(name), std::move(args));
+            }
+            else if (auto const unr = clang::dyn_cast<clang::UnresolvedLookupExpr>(*fc))
+            {
+                auto name   = unr->getName().getAsString();
+                expression_ = std::make_unique<FunctionCall>(std::move(name), make_args(c->arguments()));
+            }
+            else
+            {
+                expression_ = std::make_unique<FunctionCall>("<unknown call type>", make_args(c->arguments()));
+            }
+        }
+
         return false;
     }
 }

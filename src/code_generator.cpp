@@ -174,7 +174,7 @@ namespace fri
         (BinaryOperator const& b) -> void
     {
         auto const opstr = bin_op_to_string(b.op_);
-        auto const color = std::isalnum(opstr.front()) ? colors_.keyword_ : colors_.plain_;
+        auto const color = this->op_color(opstr);
         if (is_compound_op(b.op_))
         {
             b.lhs_->accept(*this);
@@ -206,17 +206,41 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
+        (MemberVarRef const& m) -> void
+    {
+        m.base_->accept(*this);
+        out_->out(".", colors_.plain_);
+        out_->out(m.name_, colors_.variable_);
+    }
+
+    auto PseudocodeGenerator::visit
         (UnaryOperator const& r) -> void
     {
+        auto const opstr = un_op_to_string(r.op_);
+        auto const color = this->op_color(opstr);
         if (is_postfixx(r.op_))
         {
-            r.ex_->accept(*this);
-            out_->out(un_op_to_string(r.op_), colors_.plain_);
+            if (0 == r.arg_.index())
+            {
+                std::get<0>(r.arg_)->accept(*this);
+            }
+            else if (1 == r.arg_.index())
+            {
+                std::get<1>(r.arg_)->accept(*this);
+            }
+            out_->out(opstr, color);
         }
         else
         {
-            out_->out(un_op_to_string(r.op_), colors_.plain_);
-            r.ex_->accept(*this);
+            out_->out(opstr, color);
+            if (0 == r.arg_.index())
+            {
+                std::get<0>(r.arg_)->accept(*this);
+            }
+            else if (1 == r.arg_.index())
+            {
+                std::get<1>(r.arg_)->accept(*this);
+            }
         }
     }
 
@@ -231,25 +255,18 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
-        (FunctionCall const&) -> void
+        (FunctionCall const& c) -> void
     {
-        // TODO
+        out_->out(c.name_, colors_.function_);
+        out_->out("(", colors_.plain_);
+        this->visit_range(", ", std::begin(c.args_), std::end(c.args_));
+        out_->out(")", colors_.plain_);
     }
 
     auto PseudocodeGenerator::visit
-        (BuiltinUnaryOperator const& b) -> void
+        (This const&) -> void
     {
-        out_->out(bun_op_to_string(b.op_), colors_.keyword_);
-        out_->out("(", colors_.plain_);
-        if (0 == b.arg_.index())
-        {
-            std::get<0>(b.arg_)->accept(*this);
-        }
-        else if (1 == b.arg_.index())
-        {
-            std::get<1>(b.arg_)->accept(*this);
-        }
-        out_->out(")", colors_.plain_);
+        out_->out("self", colors_.keyword_);
     }
 
     auto PseudocodeGenerator::visit
@@ -277,7 +294,7 @@ namespace fri
         // Class header.
         out_->begin_line();
         out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", colors_.keyword_);
-        out_->out(c.name_, colors_.customType_);
+        out_->out(c.name_.empty() ? c.qualName_ : c.name_, colors_.customType_);
 
         // Split base classes to interfaces and classes.
         auto bases          = c.bases_;
@@ -294,7 +311,8 @@ namespace fri
             out_->out(" implementuje ", colors_.keyword_);
             while (itImpl != basesMid)
             {
-                out_->out((*itImpl)->name_, colors_.customType_);
+                auto const& name = (*itImpl)->name_.empty() ? (*itImpl)->qualName_ : (*itImpl)->name_;
+                out_->out(name, colors_.customType_);
                 ++itImpl;
                 if ((itImpl != basesMid))
                 {
@@ -310,7 +328,8 @@ namespace fri
             out_->out(" rozširuje ", colors_.keyword_);
             while (itExt != basesEnd)
             {
-                out_->out((*itExt)->name_, colors_.customType_);
+                auto const& name = (*itImpl)->name_.empty() ? (*itImpl)->qualName_ : (*itImpl)->name_;
+                out_->out(name, colors_.customType_);
                 ++itExt;
                 if (itExt != basesEnd)
                 {
@@ -515,11 +534,20 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
-        (ProcedureCall const& c) -> void
+        (DestructorCall const& d) -> void
     {
-        out_->out(c.name_, colors_.function_);
+        out_->out("deštrutktor ", colors_.keyword_);
+        d.ex_->accept(*this);
+    }
+
+    auto PseudocodeGenerator::visit
+        (MemberFunctionCall const& m) -> void
+    {
+        m.base_->accept(*this);
+        out_->out(".", colors_.plain_);
+        out_->out(m.call_, colors_.function_);
         out_->out("(", colors_.plain_);
-        this->visit_range(", ", std::begin(c.args_), std::end(c.args_));
+        this->visit_range(", ", std::begin(m.args_), std::end(m.args_));
         out_->out(")", colors_.plain_);
     }
 
@@ -571,20 +599,11 @@ namespace fri
             case UnOpcode::DecPre:  return "--";
             case UnOpcode::DecPost: return "--";
             case UnOpcode::LogNot:  return "nie ";
-            case UnOpcode::Deref:   return "*";
+            case UnOpcode::Deref:   return "sprístupni ";
             case UnOpcode::Address: return "adresa ";
             case UnOpcode::ArNot:   return "-";
+            case UnOpcode::Sizeof:  return "veľkosť ";
             default:                return "<unknown operator>";
-        }
-    }
-
-    auto PseudocodeGenerator::bun_op_to_string
-        (BuiltinUnOpcode const op) -> std::string
-    {
-        switch (op)
-        {
-            case BuiltinUnOpcode::Sizeof: return "sizeof";
-            default:                      return "<unknown builtin>";
         }
     }
 
@@ -611,6 +630,12 @@ namespace fri
             case UnOpcode::DecPost: return true;
             default:                return false;
         }
+    }
+
+    auto PseudocodeGenerator::op_color
+        (std::string_view const s) -> Color
+    {
+        return not s.empty() and std::isalnum(s.front()) ? colors_.keyword_ : colors_.plain_;
     }
 
     template<class InputIt>
