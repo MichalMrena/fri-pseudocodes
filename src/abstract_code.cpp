@@ -115,8 +115,8 @@ namespace fri
     }
 
     MemberFunctionCall::MemberFunctionCall
-        ( std::unique_ptr<Expression> e
-        , std::string c
+        ( std::unique_ptr<Expression>              e
+        , std::string                              c
         , std::vector<std::unique_ptr<Expression>> as ) :
         base_ (std::move(e)),
         call_ (std::move(c)),
@@ -124,17 +124,17 @@ namespace fri
     {
     }
 
-    Delete::Delete
-        (std::unique_ptr<Expression> ex) :
-        ex_ (std::move(ex))
+    ExpressionCall::ExpressionCall
+        ( std::unique_ptr<Expression>              e
+        , std::vector<std::unique_ptr<Expression>> as ) :
+        ex_   (std::move(e)),
+        args_ (std::move(as))
     {
     }
 
-    Assignment::Assignment
-        ( std::unique_ptr<Expression> l
-        , std::unique_ptr<Expression> r ) :
-        lhs_ (std::move(l)),
-        rhs_ (std::move(r))
+    Delete::Delete
+        (std::unique_ptr<Expression> ex) :
+        ex_ (std::move(ex))
     {
     }
 

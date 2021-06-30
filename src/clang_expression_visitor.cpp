@@ -199,6 +199,17 @@ namespace fri
                 auto name   = unr->getName().getAsString();
                 expression_ = std::make_unique<FunctionCall>(std::move(name), make_args(c->arguments()));
             }
+            else if (auto const dm = clang::dyn_cast<clang::CXXDependentScopeMemberExpr>(*fc))
+            {
+                auto base   = dm->isImplicitAccess() ? std::make_unique<This>() : this->read_expression(dm->getBase());
+                auto name   = dm->getMemberNameInfo().getAsString();
+                auto args   = make_args(c->arguments());
+                expression_ = std::make_unique<MemberFunctionCall>(std::move(base), std::move(name), std::move(args));
+            }
+            else if (auto const v = clang::dyn_cast<clang::DeclRefExpr>(*fc)) // TODO zovšeobecniť na expression?
+            {
+                expression_ = std::make_unique<ExpressionCall>(this->read_expression(*fc), make_args(c->arguments()));
+            }
             else
             {
                 expression_ = std::make_unique<FunctionCall>("<unknown call type>", make_args(c->arguments()));

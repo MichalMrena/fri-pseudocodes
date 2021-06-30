@@ -40,7 +40,7 @@ namespace fri
     };
 
     /**
-     *  @brief Implements accept using CRTP. And makes derived classe a @p VirtualBase .
+     *  @brief Implements accept using CRTP. Makes derived classe a @p VirtualBase .
      */
     template<class VirtualBase, class Derived>
     struct VisitableFamily : public VirtualBase
@@ -177,6 +177,13 @@ namespace fri
         MemberFunctionCall (std::unique_ptr<Expression>, std::string, std::vector<std::unique_ptr<Expression>>);
     };
 
+    struct ExpressionCall : public VisitableFamily<Expression, ExpressionCall>
+    {
+        std::unique_ptr<Expression>              ex_;
+        std::vector<std::unique_ptr<Expression>> args_;
+        ExpressionCall (std::unique_ptr<Expression>, std::vector<std::unique_ptr<Expression>>);
+    };
+
     struct This : public VisitableFamily<Expression, This>
     {
     };
@@ -211,13 +218,6 @@ namespace fri
     struct VarDefinition : public VisitableFamily<Statement, VarDefinition>
     {
         VarDefCommon var_;
-    };
-
-    struct Assignment : public VisitableFamily<Statement, Assignment>
-    {
-        std::unique_ptr<Expression> lhs_;
-        std::unique_ptr<Expression> rhs_;
-        Assignment (std::unique_ptr<Expression>, std::unique_ptr<Expression>);
     };
 
     struct CompoundStatement : public VisitableFamily<Statement, CompoundStatement>
@@ -339,6 +339,7 @@ namespace fri
         virtual auto visit (FunctionCall const&)         -> void = 0;
         virtual auto visit (DestructorCall const&)       -> void = 0;
         virtual auto visit (MemberFunctionCall const&)   -> void = 0;
+        virtual auto visit (ExpressionCall const&)       -> void = 0;
         virtual auto visit (This const&)                 -> void = 0;
 
         virtual auto visit (PrimType const&)             -> void = 0;
@@ -357,7 +358,6 @@ namespace fri
         virtual auto visit (CompoundStatement const&)    -> void = 0;
         virtual auto visit (ExpressionStatement const&)  -> void = 0;
         virtual auto visit (Return const&)               -> void = 0;
-        virtual auto visit (Assignment const&)           -> void = 0;
         virtual auto visit (If const&)                   -> void = 0;
         virtual auto visit (Delete const&)               -> void = 0;
         virtual auto visit (Throw const&)                -> void = 0;

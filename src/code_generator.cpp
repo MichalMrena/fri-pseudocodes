@@ -505,14 +505,6 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
-        (Assignment const& a) -> void
-    {
-        a.lhs_->accept(*this);
-        out_->out(" <- ", colors_.plain_);
-        a.rhs_->accept(*this);
-    }
-
-    auto PseudocodeGenerator::visit
         (If const& i) -> void
     {
         out_->out("Ak ", colors_.keyword_);
@@ -548,6 +540,15 @@ namespace fri
         out_->out(m.call_, colors_.function_);
         out_->out("(", colors_.plain_);
         this->visit_range(", ", std::begin(m.args_), std::end(m.args_));
+        out_->out(")", colors_.plain_);
+    }
+
+    auto PseudocodeGenerator::visit
+        (ExpressionCall const& e) -> void
+    {
+        e.ex_->accept(*this);
+        out_->out("(", colors_.plain_);
+        this->visit_range(", ", std::begin(e.args_), std::end(e.args_));
         out_->out(")", colors_.plain_);
     }
 

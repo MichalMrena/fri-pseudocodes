@@ -131,6 +131,7 @@ namespace fri
         auto visit (FunctionCall const&)         -> void override;
         auto visit (DestructorCall const&)       -> void override;
         auto visit (MemberFunctionCall const&)   -> void override;
+        auto visit (ExpressionCall const&)       -> void override;
         auto visit (This const&)                 -> void override;
 
         auto visit (PrimType const&)             -> void override;
@@ -149,7 +150,6 @@ namespace fri
         auto visit (CompoundStatement const& c)  -> void override;
         auto visit (ExpressionStatement const&)  -> void override;
         auto visit (Return const&)               -> void override;
-        auto visit (Assignment const&)           -> void override;
         auto visit (If const&)                   -> void override;
         auto visit (Delete const&)               -> void override;
         auto visit (Throw const&)                -> void override;
