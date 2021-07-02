@@ -1,9 +1,16 @@
 #include "clang_expression_visitor.hpp"
+#include "clang_statement_visitor.hpp"
 #include "clang_utils.hpp"
 #include <iostream>
 
 namespace fri
 {
+    ExpressionVisitor::ExpressionVisitor
+        (StatementVisitor& s) :
+        statementer_ (&s)
+    {
+    }
+
     auto ExpressionVisitor::read_expression
         (clang::Stmt* const s) -> std::unique_ptr<Expression>
     {
@@ -60,7 +67,9 @@ namespace fri
     auto ExpressionVisitor::VisitCXXDependentScopeMemberExpr
         (clang::CXXDependentScopeMemberExpr* const r) -> bool
     {
-        expression_ = std::make_unique<VarRef>(r->getMemberNameInfo().getAsString());
+        auto base   = r->isImplicitAccess() ? std::make_unique<This>() : this->read_expression(r->getBase());
+        expression_ = std::make_unique<MemberVarRef>( std::move(base)
+                                                    , r->getMemberNameInfo().getAsString() );
         return false;
     }
 
@@ -152,6 +161,7 @@ namespace fri
         // Je tu trochu technický problém lebo void(...) funkcie nie sú po správnosti Expression.
         // Budeme sa ale tváriť, že namiesto void vracajú unit...
 
+        // TODO to private static method
         auto const make_args = [this](auto&& as)
         {
             auto args = std::vector<std::unique_ptr<Expression>>();
@@ -216,6 +226,54 @@ namespace fri
             }
         }
 
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitConditionalOperator
+        (clang::ConditionalOperator* const c) -> bool
+    {
+        expression_ = std::make_unique<IfExpression>( this->read_expression(c->getCond())
+                                                    , this->read_expression(c->getTrueExpr())
+                                                    , this->read_expression(c->getFalseExpr()) );
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitCXXUnresolvedConstructExpr
+        (clang::CXXUnresolvedConstructExpr* const c) -> bool
+    {
+        auto const make_args = [this](auto&& as)
+        {
+            auto args = std::vector<std::unique_ptr<Expression>>();
+            for (auto const arg : as)
+            {
+                args.emplace_back(this->read_expression(arg));
+            }
+            return args;
+        };
+ 
+        expression_ = std::make_unique<ConstructorCall>( extract_type(c->getType())
+                                                       , make_args(c->arguments()) );
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitLambdaExpr
+        (clang::LambdaExpr* l) -> bool
+    {
+        statementer_->TraverseStmt(l->getBody());
+        auto body = statementer_->release_compound();
+        if (body)
+        {
+            auto params = std::vector<ParamDefinition>();
+            for (auto const p : l->getCallOperator()->parameters())
+            {
+                params.emplace_back();
+                auto& param = params.back();
+                param.var_.name_ = p->getNameAsString();
+                param.var_.type_ = extract_type(p->getType());
+            }
+            expression_ = std::make_unique<Lambda>( std::move(params)
+                                                  , std::move(*body) );
+        }
         return false;
     }
 }

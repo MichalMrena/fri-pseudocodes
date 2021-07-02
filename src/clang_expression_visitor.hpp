@@ -7,9 +7,13 @@
 
 namespace fri
 {
+    class StatementVisitor;
+
     class ExpressionVisitor : public clang::RecursiveASTVisitor<ExpressionVisitor>
     {
     public:
+        ExpressionVisitor (StatementVisitor&);
+
         auto read_expression (clang::Stmt*) -> std::unique_ptr<Expression>;
 
         auto VisitIntegerLiteral              (clang::IntegerLiteral*)              -> bool;
@@ -26,10 +30,14 @@ namespace fri
         auto VisitCompoundAssignOperator      (clang::CompoundAssignOperator*)      -> bool;
         auto VisitUnaryExprOrTypeTraitExpr    (clang::UnaryExprOrTypeTraitExpr*)    -> bool;
         auto VisitCXXThisExpr                 (clang::CXXThisExpr*)                 -> bool;
-        auto VisitCallExpr                    (clang::CallExpr*)                     -> bool;
+        auto VisitCallExpr                    (clang::CallExpr*)                    -> bool;
+        auto VisitConditionalOperator         (clang::ConditionalOperator*)         -> bool;
+        auto VisitCXXUnresolvedConstructExpr  (clang::CXXUnresolvedConstructExpr*)  -> bool;
+        auto VisitLambdaExpr                  (clang::LambdaExpr*)                  -> bool;
 
     private:
         std::unique_ptr<Expression> expression_;
+        StatementVisitor*           statementer_;
     };
 }
 

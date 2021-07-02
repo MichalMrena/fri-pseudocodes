@@ -6,7 +6,8 @@ namespace fri
 {
     StatementVisitor::StatementVisitor
         (clang::ASTContext& c) :
-        context_ (&c)
+        context_      (&c),
+        expressioner_ (*this)
     {
     }
 

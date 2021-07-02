@@ -108,6 +108,14 @@ namespace fri
     {
     }
 
+    ConstructorCall::ConstructorCall
+        ( std::unique_ptr<Type>                    t
+        , std::vector<std::unique_ptr<Expression>> as ) :
+        type_ (std::move(t)),
+        args_ (std::move(as))
+    {
+    }
+
     DestructorCall::DestructorCall
         (std::unique_ptr<Expression> e) :
         ex_ (std::move(e))
@@ -174,6 +182,16 @@ namespace fri
     {
     }
 
+    IfExpression::IfExpression
+        ( std::unique_ptr<Expression> c
+        , std::unique_ptr<Expression> t
+        , std::unique_ptr<Expression> e ) :
+        cond_ (std::move(c)),
+        then_ (std::move(t)),
+        else_ (std::move(e))
+    {
+    }
+
     ExpressionStatement::ExpressionStatement
         (std::unique_ptr<Expression> expression) :
         expression_ (std::move(expression))
@@ -194,14 +212,23 @@ namespace fri
 
     WhileLoop::WhileLoop
         ( std::unique_ptr<Expression> c
-        , CompoundStatement b ) :
+        , CompoundStatement           b ) :
         loop_ {std::move(c), std::move(b)}
     {
     }
 
     DoWhileLoop::DoWhileLoop
-        (std::unique_ptr<Expression> c, CompoundStatement b) :
+        ( std::unique_ptr<Expression> c
+        , CompoundStatement           b ) :
         loop_ {std::move(c), std::move(b)}
+    {
+    }
+
+    Lambda::Lambda
+        ( std::vector<ParamDefinition> ps
+        , CompoundStatement            b ) :
+        params_ (std::move(ps)),
+        body_   (std::move(b))
     {
     }
 

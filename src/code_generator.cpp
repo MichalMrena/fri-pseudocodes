@@ -270,6 +270,19 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
+        (IfExpression const& c) -> void
+    {
+        out_->out("(", colors_.plain_);
+        out_->out("Ak ", colors_.keyword_);
+        c.cond_->accept(*this);
+        out_->out(" potom ", colors_.keyword_);
+        c.then_->accept(*this);
+        out_->out(" inak ", colors_.keyword_);
+        c.else_->accept(*this);
+        out_->out(")", colors_.plain_);
+    }
+
+    auto PseudocodeGenerator::visit
         (PrimType const& p) -> void
     {
         out_->out(p.name_, colors_.primType_);
@@ -328,7 +341,7 @@ namespace fri
             out_->out(" rozširuje ", colors_.keyword_);
             while (itExt != basesEnd)
             {
-                auto const& name = (*itImpl)->name_.empty() ? (*itImpl)->qualName_ : (*itImpl)->name_;
+                auto const& name = (*itExt)->name_.empty() ? (*itExt)->qualName_ : (*itExt)->name_;
                 out_->out(name, colors_.customType_);
                 ++itExt;
                 if (itExt != basesEnd)
@@ -526,6 +539,15 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
+        (ConstructorCall const& c) -> void
+    {
+        c.type_->accept(*this);
+        out_->out("(", colors_.plain_);
+        this->visit_range(", ", std::begin(c.args_), std::end(c.args_)); // TODO visit args
+        out_->out(")", colors_.plain_);
+    }
+
+    auto PseudocodeGenerator::visit
         (DestructorCall const& d) -> void
     {
         out_->out("deštrutktor ", colors_.keyword_);
@@ -550,6 +572,47 @@ namespace fri
         out_->out("(", colors_.plain_);
         this->visit_range(", ", std::begin(e.args_), std::end(e.args_));
         out_->out(")", colors_.plain_);
+    }
+
+    auto PseudocodeGenerator::visit
+        (Lambda const& l) -> void
+    {
+        // out_->out("λ", colors_.keyword_);
+
+        for (auto const& p : l.params_)
+        {
+            out_->out("λ", colors_.keyword_);
+            out_->out(p.var_.name_, colors_.variable_);
+            out_->out(" ");
+        }
+
+        // out_->out("(", colors_.plain_);
+        // auto const pend = std::end(l.params_);
+        // auto pit = std::begin(l.params_);
+        // while (pit != pend)
+        // {
+        //     out_->out((*pit).var_.name_, colors_.variable_);
+        //     ++pit;
+        //     if (pit != pend)
+        //     {
+        //         out_->out(", ", colors_.plain_);
+        //     }
+        // }
+        // out_->out(")", colors_.plain_);
+
+        out_->out("-> { ", colors_.plain_);
+        auto const end = std::end(l.body_.statements_);
+        auto it = std::begin(l.body_.statements_);
+        while (it != end)
+        {
+            (*it)->accept(*this);
+            ++it;
+            if (it != end)
+            {
+                out_->out("; ", colors_.plain_);
+            }
+        }
+        out_->out(" }", colors_.plain_);
     }
 
     auto PseudocodeGenerator::visit

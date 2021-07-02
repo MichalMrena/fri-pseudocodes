@@ -68,6 +68,25 @@ namespace fri
         Indirection (std::unique_ptr<Type> pointee);
     };
 
+// Other:
+
+    struct VarDefCommon : public Visitable<VarDefCommon>
+    {
+        std::unique_ptr<Type>       type_;
+        std::string                 name_;
+        std::unique_ptr<Expression> initializer_ {};
+    };
+
+    struct ParamDefinition : public Visitable<ParamDefinition> // TODO construcotr...
+    {
+        VarDefCommon var_;
+    };
+
+    struct FieldDefinition : public Visitable<FieldDefinition>
+    {
+        VarDefCommon var_;
+    };
+
 // Expressions:
 
     struct IntLiteral : public VisitableFamily<Expression, IntLiteral>
@@ -163,6 +182,13 @@ namespace fri
         FunctionCall (std::string, std::vector<std::unique_ptr<Expression>>);
     };
 
+    struct ConstructorCall : public VisitableFamily<Expression, ConstructorCall>
+    {
+        std::unique_ptr<Type>                    type_;
+        std::vector<std::unique_ptr<Expression>> args_;
+        ConstructorCall (std::unique_ptr<Type>, std::vector<std::unique_ptr<Expression>>);
+    };
+
     struct DestructorCall : public VisitableFamily<Expression, DestructorCall>
     {
         std::unique_ptr<Expression> ex_;
@@ -188,23 +214,12 @@ namespace fri
     {
     };
 
-// Other:
-
-    struct VarDefCommon : public Visitable<VarDefCommon>
+    struct IfExpression : public VisitableFamily<Expression, IfExpression>
     {
-        std::unique_ptr<Type>       type_;
-        std::string                 name_;
-        std::unique_ptr<Expression> initializer_ {};
-    };
-
-    struct ParamDefinition : public Visitable<ParamDefinition>
-    {
-        VarDefCommon var_;
-    };
-
-    struct FieldDefinition : public Visitable<FieldDefinition>
-    {
-        VarDefCommon var_;
+        std::unique_ptr<Expression> cond_;
+        std::unique_ptr<Expression> then_;
+        std::unique_ptr<Expression> else_;
+        IfExpression (std::unique_ptr<Expression>, std::unique_ptr<Expression>, std::unique_ptr<Expression>);
     };
 
 // Statements:
@@ -279,6 +294,15 @@ namespace fri
     {
     };
 
+// Lambda:
+
+    struct Lambda : public VisitableFamily<Expression, Lambda>
+    {
+        std::vector<ParamDefinition> params_;
+        CompoundStatement            body_;
+        Lambda (std::vector<ParamDefinition>, CompoundStatement);
+    };
+
 // Other:
 
     struct Method : public Visitable<Method>
@@ -337,10 +361,13 @@ namespace fri
         virtual auto visit (UnaryOperator const&)        -> void = 0;
         virtual auto visit (New const&)                  -> void = 0;
         virtual auto visit (FunctionCall const&)         -> void = 0;
+        virtual auto visit (ConstructorCall const&)      -> void = 0;
         virtual auto visit (DestructorCall const&)       -> void = 0;
         virtual auto visit (MemberFunctionCall const&)   -> void = 0;
         virtual auto visit (ExpressionCall const&)       -> void = 0;
         virtual auto visit (This const&)                 -> void = 0;
+        virtual auto visit (IfExpression const&)         -> void = 0;
+        virtual auto visit (Lambda const&)               -> void = 0;
 
         virtual auto visit (PrimType const&)             -> void = 0;
         virtual auto visit (CustomType const&)           -> void = 0;

@@ -129,10 +129,13 @@ namespace fri
         auto visit (UnaryOperator const&)        -> void override;
         auto visit (New const&)                  -> void override;
         auto visit (FunctionCall const&)         -> void override;
+        auto visit (ConstructorCall const&)      -> void override;
         auto visit (DestructorCall const&)       -> void override;
         auto visit (MemberFunctionCall const&)   -> void override;
         auto visit (ExpressionCall const&)       -> void override;
         auto visit (This const&)                 -> void override;
+        auto visit (IfExpression const&)         -> void override;
+        auto visit (Lambda const&)               -> void override;
 
         auto visit (PrimType const&)             -> void override;
         auto visit (CustomType const&)           -> void override;
