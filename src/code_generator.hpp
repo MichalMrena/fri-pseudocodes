@@ -4,6 +4,7 @@
 #include "abstract_code.hpp"
 
 #include <ostream>
+#include <fstream>
 #include <string_view>
 #include <cstdint>
 
@@ -104,6 +105,38 @@ namespace fri
         auto reset_color ()             -> void;
 
     private:
+        std::size_t      indentStep_;
+        std::size_t      currentIndent_;
+        std::string_view spaces_;
+    };
+
+    /**
+     *  @brief Prints code to a RTF file.
+     */
+    class RtfCodePrinter : public ICodePrinter
+    {
+    public:
+        RtfCodePrinter   (std::ofstream&);
+        ~RtfCodePrinter  ();
+
+        auto inc_indent  () -> void override;
+        auto dec_indent  () -> void override;
+        auto begin_line  () -> void override;
+        auto end_line    () -> void override;
+        auto blank_line  () -> void override;
+
+        auto out         (std::string_view)               -> RtfCodePrinter& override;
+        auto out         (std::string_view, Color const&) -> RtfCodePrinter& override;
+
+    private:
+        auto begin_color (Color const&) -> void;
+        auto end_color   ()             -> void;
+
+        static auto color_code (Color const&)     -> unsigned;
+        static auto encode     (std::string_view) -> std::string;
+
+    private:
+        std::ofstream*   ofst_;
         std::size_t      indentStep_;
         std::size_t      currentIndent_;
         std::string_view spaces_;

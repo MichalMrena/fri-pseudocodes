@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <type_traits>
 #include <cctype>
+#include <cassert>
 
 namespace fri
 {
@@ -127,6 +128,152 @@ namespace fri
         () -> void
     {
         std::cout << "\x1B[0m";
+    }
+
+// RtfCodePrinter definitions:
+
+    RtfCodePrinter::RtfCodePrinter
+        (std::ofstream& ofst) :
+        ofst_          (&ofst),
+        indentStep_    (4),
+        currentIndent_ (0),
+        spaces_        ("                               ")
+    {
+        *ofst_ << R"({\rtf1\ansi\deff0\f0\fs20)" << '\n'
+               << R"({\fonttbl)"                 << '\n'
+               << R"({\f0\fmodern Consolas;})"   << '\n'
+               << R"(})"                         << '\n'
+               << R"({\colortbl)"                << '\n'
+               << R"(;)"                         << '\n'
+               << R"(\red191\green144\blue0;)"   << '\n'
+               << R"(\red0\green112\blue192;)"   << '\n'
+               << R"(\red0\green32\blue96;)"     << '\n'
+               << R"(\red0\green0\blue0;)"       << '\n'
+               << R"(\red0\green176\blue80;)"    << '\n'
+               << R"(\red0\green0\blue255;)"     << '\n'
+               << R"(\red197\green90\blue17;)"   << '\n'
+               << R"(\red112\green48\blue160;)"  << '\n'
+               << R"(})"                         << '\n';
+    }
+
+    RtfCodePrinter::~RtfCodePrinter
+        ()
+    {
+        ofst_->flush();
+        *ofst_ << "}";
+    }
+
+    auto RtfCodePrinter::inc_indent
+        () -> void
+    {
+        ++currentIndent_;
+    }
+
+    auto RtfCodePrinter::dec_indent
+        () -> void
+    {
+         if (currentIndent_ > 0)
+         {
+             --currentIndent_;
+         }
+    }
+
+    auto RtfCodePrinter::begin_line
+        () -> void
+    {
+        auto const sc = std::min(spaces_.size(), currentIndent_ * indentStep_);
+        *ofst_ << spaces_.substr(0, sc);
+    }
+
+    auto RtfCodePrinter::end_line
+        () -> void
+    {
+        *ofst_ << R"(\line)" << '\n';
+    }
+
+    auto RtfCodePrinter::blank_line
+        () -> void
+    {
+        this->end_line();
+    }
+
+    auto RtfCodePrinter::out
+        (std::string_view s) -> RtfCodePrinter&
+    {
+        *ofst_ << encode(s);
+        return *this;
+    }
+
+    auto RtfCodePrinter::out
+        (std::string_view s, Color const& c) -> RtfCodePrinter&
+    {
+        this->begin_color(c);
+        *ofst_ << encode(s);
+        this->end_color();
+        return *this;
+    }
+
+    auto RtfCodePrinter::begin_color
+        (Color const& c) -> void
+    {
+        *ofst_ << R"({\cf)"
+               << color_code(c)
+               << ' ';
+    }
+
+    auto RtfCodePrinter::end_color
+        () -> void
+    {
+        *ofst_ << '}';
+    }
+
+    auto RtfCodePrinter::color_code
+        (Color const& c) -> unsigned
+    {
+        return ( Color {191, 144, 0  } == c ? 1u
+               : Color {0,   112, 192} == c ? 2u
+               : Color {0,   32,  96 } == c ? 3u
+               : Color {0,   0,   0  } == c ? 4u
+               : Color {0,   176, 80 } == c ? 5u
+               : Color {0,   0,   255} == c ? 6u
+               : Color {197, 90,  17 } == c ? 7u
+               : Color {112, 48,  160} == c ? 8u
+               :                              0u );
+    }
+
+    auto RtfCodePrinter::encode
+        (std::string_view s) -> std::string
+    {
+        auto cs = std::string();
+        cs.reserve(s.size());
+
+        auto const end = std::end(s);
+        auto it = std::begin(s);
+        while (it != end)
+        {
+            auto const c  = *it;
+            auto const cu = static_cast<unsigned char>(c);
+            if (c == '\\' or c == '{' or c == '}')
+            {
+                (cs += '\\') += c;
+            }
+            else if ((cu & 0xE0u) == 0xC0u)
+            {
+                // TODO check 2 more chars
+                ++it;
+                assert(it != end);
+                auto const c1 = cu;
+                auto const c2 = static_cast<unsigned char>(*it);
+                auto const u  = (c1 & 0x1Fu) << 6 | (c2 & 0x3Fu);
+                ((cs += R"(\u)") += std::to_string(u)) += '?';
+            }
+            else
+            {
+                cs += c;
+            }
+            ++it;
+        }
+        return cs;
     }
 
 // PseudocodeGenerator definitions:

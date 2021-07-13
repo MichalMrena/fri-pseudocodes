@@ -28,7 +28,7 @@ namespace fri
         auto& c = this->get_class(qualName);
         c.name_ = classDecl->getNameAsString();
 
-            std::cout << classDecl->getQualifiedNameAsString() << " : ";
+            // std::cout << classDecl->getQualifiedNameAsString() << " : ";
         for (auto const base : classDecl->bases())
         {
             auto const bt = base.getType();
@@ -36,20 +36,20 @@ namespace fri
             {
                 auto const baseDecl = bt->getAs<clang::RecordType>()->getAsCXXRecordDecl();
                 c.bases_.emplace_back(&this->get_class(baseDecl->getQualifiedNameAsString()));
-                    std::cout << baseDecl->getQualifiedNameAsString() << " ";
+                    // std::cout << baseDecl->getQualifiedNameAsString() << " ";
             }
             else if (auto const tt = clang::dyn_cast<clang::TemplateSpecializationType>(bt.getTypePtr()))
             {
                 c.bases_.emplace_back(&this->get_class(tt->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString()));
-                    std::cout << tt->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString() << " ";
+                    // std::cout << tt->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString() << " ";
             }
             else
             {
-                    std::cout << "<other> ";
+                    // std::cout << "<other> ";
             }
 
         }
-        std::cout << '\n';
+            // std::cout << '\n';
 
         for (auto const field : classDecl->fields())
         {
