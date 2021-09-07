@@ -2,22 +2,27 @@
 
 namespace fri
 {
-    auto extract_type (clang::QualType qt) -> std::unique_ptr<Type>
+    auto extract_type (clang::PrintingPolicy const& pp, clang::QualType qt) -> std::unique_ptr<Type>
     {
         auto const t = qt.getTypePtr();
         if (t->isPointerType())
         {
             auto const ptr = t->getAs<clang::PointerType>();
-            return std::make_unique<Indirection>(extract_type(ptr->getPointeeType()));
+            return std::make_unique<Indirection>(extract_type(pp, ptr->getPointeeType()));
         }
         else if (t->isReferenceType())
         {
             auto const ref = t->getAs<clang::ReferenceType>();
-            return std::make_unique<Indirection>(extract_type(ref->getPointeeType()));
+            return std::make_unique<Indirection>(extract_type(pp, ref->getPointeeType()));
         }
-        else if (t->isBuiltinType())
+        else if (auto const bt = clang::dyn_cast<clang::BuiltinType>(t))
         {
-            return std::make_unique<PrimType>(qt.getAsString());
+            return std::make_unique<PrimType>(bt->getName(pp).str());
+        }
+        else if (auto const tt = clang::dyn_cast<clang::TypedefType>(t))
+        {
+            return extract_type(pp, tt->desugar());
+            // return std::make_unique<PrimType>(tt->getDecl()->getName().str()); // TODO is prim
         }
         else if (t->isRecordType())
         {
@@ -34,7 +39,7 @@ namespace fri
         }
         else
         {
-            return std::make_unique<PrimType>("<unknown type>");
+            return std::make_unique<PrimType>(std::string("<unknown type> (") + qt.getAsString() + std::string(")"));
         }
     }
 

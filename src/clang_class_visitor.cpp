@@ -28,6 +28,7 @@ namespace fri
         auto& c = this->get_class(qualName);
         c.name_ = classDecl->getNameAsString();
 
+            context_->getPrintingPolicy();
             // std::cout << classDecl->getQualifiedNameAsString() << " : ";
         for (auto const base : classDecl->bases())
         {
@@ -55,7 +56,7 @@ namespace fri
         {
             auto& f = c.fields_.emplace_back();
             f.var_.name_ = field->getNameAsString();
-            f.var_.type_ = extract_type(field->getType());
+            f.var_.type_ = extract_type(context_->getPrintingPolicy(), field->getType());
         }
 
         for (auto const method : classDecl->methods())
@@ -67,14 +68,14 @@ namespace fri
 
             auto& m    = c.methods_.emplace_back();
             m.name_    = method->getNameAsString();
-            m.retType_ = extract_type(method->getReturnType());
+            m.retType_ = extract_type(context_->getPrintingPolicy(), method->getReturnType());
 
             for (auto i = 0u; i < method->getNumParams(); ++i)
             {
                 auto const param = method->getParamDecl(i);
                 auto& p = m.params_.emplace_back();
                 p.var_.name_ = param->getNameAsString();
-                p.var_.type_ = extract_type(param->getType());
+                p.var_.type_ = extract_type(context_->getPrintingPolicy(), param->getType());
             }
 
             if (method->isPure())

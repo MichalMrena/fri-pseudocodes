@@ -257,15 +257,16 @@ namespace fri
             {
                 (cs += '\\') += c;
             }
-            else if ((cu & 0xE0u) == 0xC0u)
+            else if (cu & 0x80)
             {
-                // TODO check 2 more chars
-                ++it;
-                assert(it != end);
-                auto const c1 = cu;
-                auto const c2 = static_cast<unsigned char>(*it);
-                auto const u  = (c1 & 0x1Fu) << 6 | (c2 & 0x3Fu);
+                auto const as_u = [](auto const c){ return static_cast<unsigned char>(c); };
+                auto const len = (cu & 0xE0u) == 0xC0u ? 2 :
+                                 (cu & 0xF0u) == 0xE0u ? 3 : 4;
+                auto const u = 2 == len ? (cu & 0x1Fu) << 6  | (as_u(*(it + 1)) & 0x3Fu) :
+                               3 == len ? (cu & 0x1Fu) << 12 | (as_u(*(it + 1)) & 0x3Fu) << 6  | (as_u(*(it + 2)) & 0x3Fu) :
+                                          (cu & 0x1Fu) << 18 | (as_u(*(it + 1)) & 0x3Fu) << 12 | (as_u(*(it + 2)) & 0x3Fu) << 6 | (as_u((*(it + 3))) & 0x3Fu) ;
                 ((cs += R"(\u)") += std::to_string(u)) += '?';
+                std::advance(it, len - 1);
             }
             else
             {

@@ -7,7 +7,7 @@ namespace fri
     StatementVisitor::StatementVisitor
         (clang::ASTContext& c) :
         context_      (&c),
-        expressioner_ (*this)
+        expressioner_ (*this, c)
     {
     }
 
@@ -51,7 +51,7 @@ namespace fri
     {
         auto def = std::make_unique<VarDefinition>();
 
-        def->var_.type_ = extract_type(decl->getType());
+        def->var_.type_ = extract_type(context_->getPrintingPolicy(), decl->getType());
         def->var_.name_ = decl->getName().str();
         auto const init = decl->getInit();
         if (init)

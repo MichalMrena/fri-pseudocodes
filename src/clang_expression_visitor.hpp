@@ -12,7 +12,7 @@ namespace fri
     class ExpressionVisitor : public clang::RecursiveASTVisitor<ExpressionVisitor>
     {
     public:
-        ExpressionVisitor (StatementVisitor&);
+        ExpressionVisitor (StatementVisitor&, clang::ASTContext&);
 
         auto read_expression (clang::Stmt*) -> std::unique_ptr<Expression>;
 
@@ -38,6 +38,7 @@ namespace fri
     private:
         std::unique_ptr<Expression> expression_;
         StatementVisitor*           statementer_;
+        clang::ASTContext*          context_;
     };
 }
 

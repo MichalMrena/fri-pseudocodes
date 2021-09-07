@@ -6,8 +6,10 @@
 namespace fri
 {
     ExpressionVisitor::ExpressionVisitor
-        (StatementVisitor& s) :
-        statementer_ (&s)
+        ( StatementVisitor&  s
+        , clang::ASTContext& c ) :
+        statementer_ (&s),
+        context_     (&c)
     {
     }
 
@@ -100,7 +102,7 @@ namespace fri
                     }
                 }
             }
-            expression_ = std::make_unique<New>(extract_type(pt), std::move(argsVec));
+            expression_ = std::make_unique<New>(extract_type(context_->getPrintingPolicy(), pt), std::move(argsVec));
         }
         // TODO placement new args
 
@@ -132,7 +134,7 @@ namespace fri
         if (uo->isArgumentType())
         {
             // TODO Zatiaľ neviem ako zistiť, že je to naozaj sizeof..., ale iné asi nepoužívame
-            expression_ = std::make_unique<UnaryOperator>(UnOpcode::Sizeof, extract_type(uo->getArgumentType()));
+            expression_ = std::make_unique<UnaryOperator>(UnOpcode::Sizeof, extract_type(context_->getPrintingPolicy(), uo->getArgumentType()));
         }
         else
         {
@@ -251,7 +253,7 @@ namespace fri
             return args;
         };
  
-        expression_ = std::make_unique<ConstructorCall>( extract_type(c->getType())
+        expression_ = std::make_unique<ConstructorCall>( extract_type(context_->getPrintingPolicy(), c->getType())
                                                        , make_args(c->arguments()) );
         return false;
     }
@@ -269,7 +271,7 @@ namespace fri
                 params.emplace_back();
                 auto& param = params.back();
                 param.var_.name_ = p->getNameAsString();
-                param.var_.type_ = extract_type(p->getType());
+                param.var_.type_ = extract_type(context_->getPrintingPolicy(), p->getType());
             }
             expression_ = std::make_unique<Lambda>( std::move(params)
                                                   , std::move(*body) );
