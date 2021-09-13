@@ -48,8 +48,8 @@ namespace fri
 // ConsoleCodePrinter definitions:
 
     ConsoleCodePrinter::ConsoleCodePrinter
-        () :
-        indentStep_    (4),
+        (OutputSettings const& settings) :
+        indentStep_    (settings.indentSpaces),
         currentIndent_ (0),
         spaces_        ("                               ")
     {
@@ -111,6 +111,13 @@ namespace fri
         return *this;
     }
 
+    auto ConsoleCodePrinter::out
+        (std::string_view s, Color const& c, FontStyle) -> ConsoleCodePrinter&
+    {
+        this->out(s, c);
+        return *this;
+    }
+
     auto ConsoleCodePrinter::set_color
         (Color const& c) -> void
     {
@@ -130,30 +137,48 @@ namespace fri
         std::cout << "\x1B[0m";
     }
 
+    template<class Op>
+    auto for_each_color (CodeColorInfo const& cs, Op&& op)
+    {
+        op(cs.function_);
+        op(cs.variable_);
+        op(cs.keyword_);
+        op(cs.plain_);
+        op(cs.customType_);
+        op(cs.primType_);
+        op(cs.string_);
+        op(cs.valLiteral_);
+    }
+
 // RtfCodePrinter definitions:
 
     RtfCodePrinter::RtfCodePrinter
-        (std::ofstream& ofst) :
+        (std::ofstream& ofst, OutputSettings const& settings) :
         ofst_          (&ofst),
-        indentStep_    (4),
+        indentStep_    (settings.indentSpaces),
         currentIndent_ (0),
         spaces_        ("                               ")
     {
-        *ofst_ << R"({\rtf1\ansi\deff0\f0\fs20)" << '\n'
+        *ofst_ << R"({\rtf1\ansi\deff0\f0\fs)"   << (2 * settings.fontSize) << '\n'
                << R"({\fonttbl)"                 << '\n'
                << R"({\f0\fmodern Consolas;})"   << '\n'
                << R"(})"                         << '\n'
                << R"({\colortbl)"                << '\n'
-               << R"(;)"                         << '\n'
-               << R"(\red191\green144\blue0;)"   << '\n'
-               << R"(\red0\green112\blue192;)"   << '\n'
-               << R"(\red0\green32\blue96;)"     << '\n'
-               << R"(\red0\green0\blue0;)"       << '\n'
-               << R"(\red0\green176\blue80;)"    << '\n'
-               << R"(\red0\green0\blue255;)"     << '\n'
-               << R"(\red197\green90\blue17;)"   << '\n'
-               << R"(\red112\green48\blue160;)"  << '\n'
-               << R"(})"                         << '\n';
+               << R"(;)"                         << '\n';
+
+        for_each_color(settings.colors, [this](auto const& c)
+        {
+            colors_.emplace_back(c);
+        });
+
+        for (auto [r, g, b] : colors_)
+        {
+            auto const ri = static_cast<unsigned>(r);
+            auto const gi = static_cast<unsigned>(g);
+            auto const bi = static_cast<unsigned>(b);
+            *ofst_ << R"(\red)" << ri << R"(\green)" << gi << R"(\blue)" << bi << ';' << '\n';
+        }
+        *ofst_ << R"(})" << '\n';
     }
 
     RtfCodePrinter::~RtfCodePrinter
@@ -213,11 +238,22 @@ namespace fri
         return *this;
     }
 
+    auto RtfCodePrinter::out
+        (std::string_view s, Color const& c, FontStyle const style) -> RtfCodePrinter&
+    {
+        this->begin_color(c);
+        this->begin_style(style);
+        *ofst_ << encode(s);
+        this->end_style(style);
+        this->end_color();
+        return *this;
+    }
+
     auto RtfCodePrinter::begin_color
         (Color const& c) -> void
     {
         *ofst_ << R"({\cf)"
-               << color_code(c)
+               << this->color_code(c)
                << ' ';
     }
 
@@ -227,18 +263,49 @@ namespace fri
         *ofst_ << '}';
     }
 
+    auto RtfCodePrinter::begin_style
+        (FontStyle const s) -> void
+    {
+        switch (s)
+        {
+            case FontStyle::Bold:
+                *ofst_ << R"(\b)";
+                break;
+
+            case FontStyle::Italic:
+                *ofst_ << R"(\i)";
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    auto RtfCodePrinter::end_style
+        (FontStyle const s) -> void
+    {
+        switch (s)
+        {
+            case FontStyle::Bold:
+                *ofst_ << R"(\b0)";
+                break;
+
+            case FontStyle::Italic:
+                *ofst_ << R"(\i0)";
+                break;
+
+            default:
+                break;
+        }
+    }
+
     auto RtfCodePrinter::color_code
         (Color const& c) -> unsigned
     {
-        return ( Color {191, 144, 0  } == c ? 1u
-               : Color {0,   112, 192} == c ? 2u
-               : Color {0,   32,  96 } == c ? 3u
-               : Color {0,   0,   0  } == c ? 4u
-               : Color {0,   176, 80 } == c ? 5u
-               : Color {0,   0,   255} == c ? 6u
-               : Color {197, 90,  17 } == c ? 7u
-               : Color {112, 48,  160} == c ? 8u
-               :                              0u );
+        auto it = std::find(std::begin(colors_), std::end(colors_), c);
+        return it == std::end(colors_)
+            ? 0u
+            : static_cast<unsigned>(std::distance(std::begin(colors_), it)) + 1;
     }
 
     auto RtfCodePrinter::encode
@@ -259,7 +326,7 @@ namespace fri
             }
             else if (cu & 0x80)
             {
-                auto const as_u = [](auto const c){ return static_cast<unsigned char>(c); };
+                auto const as_u = [](auto const x){ return static_cast<unsigned char>(x); };
                 auto const len = (cu & 0xE0u) == 0xC0u ? 2 :
                                  (cu & 0xF0u) == 0xE0u ? 3 : 4;
                 auto const u = 2 == len ? (cu & 0x1Fu) << 6  | (as_u(*(it + 1)) & 0x3Fu) :
@@ -356,6 +423,20 @@ namespace fri
     auto PseudocodeGenerator::visit
         (MemberVarRef const& m) -> void
     {
+        // if (not is_this(m.base_))
+        // {
+        //     m.base_->accept(*this);
+
+            // if (is_indirection(m.base_))
+            // {
+            //     out_->out("→", colors_.plain_);
+            // }
+            // else
+            // {
+            //     out_->out(".", colors_.plain_);
+            // }
+        // }
+
         m.base_->accept(*this);
         out_->out(".", colors_.plain_);
         out_->out(m.name_, colors_.variable_);
@@ -364,31 +445,43 @@ namespace fri
     auto PseudocodeGenerator::visit
         (UnaryOperator const& r) -> void
     {
+        auto const output_arg = [this](auto const& var)
+        {
+            if (0 == var.index())
+            {
+                std::get<0>(var)->accept(*this);
+            }
+            else if (1 == var.index())
+            {
+                std::get<1>(var)->accept(*this);
+            }
+        };
+
         auto const opstr = un_op_to_string(r.op_);
         auto const color = this->op_color(opstr);
         if (is_postfixx(r.op_))
         {
-            if (0 == r.arg_.index())
-            {
-                std::get<0>(r.arg_)->accept(*this);
-            }
-            else if (1 == r.arg_.index())
-            {
-                std::get<1>(r.arg_)->accept(*this);
-            }
+            // if (0 == r.arg_.index())
+            // {
+            //     std::get<0>(r.arg_)->accept(*this);
+            // }
+            // else if (1 == r.arg_.index())
+            // {
+            //     std::get<1>(r.arg_)->accept(*this);
+            // }
+            output_arg(r.arg_);
+            out_->out(opstr, color);
+        }
+        else if (is_bothtfix(r.op_))
+        {
+            out_->out(opstr, color);
+            output_arg(r.arg_);
             out_->out(opstr, color);
         }
         else
         {
             out_->out(opstr, color);
-            if (0 == r.arg_.index())
-            {
-                std::get<0>(r.arg_)->accept(*this);
-            }
-            else if (1 == r.arg_.index())
-            {
-                std::get<1>(r.arg_)->accept(*this);
-            }
+            output_arg(r.arg_);
         }
     }
 
@@ -425,7 +518,9 @@ namespace fri
         c.cond_->accept(*this);
         out_->out(" potom ", colors_.keyword_);
         c.then_->accept(*this);
-        out_->out(" inak ", colors_.keyword_);
+        out_->end_line();
+        out_->begin_line();
+        out_->out("inak ", colors_.keyword_);
         c.else_->accept(*this);
         out_->out(")", colors_.plain_);
     }
@@ -446,7 +541,7 @@ namespace fri
         (Indirection const& p) -> void
     {
         p.pointee_->accept(*this);
-        out_->out("*", colors_.plain_);
+        out_->out("↑", colors_.plain_);
     }
 
     auto PseudocodeGenerator::visit
@@ -585,14 +680,14 @@ namespace fri
     {
         out_->out("Pokiaľ ", colors_.keyword_);
         w.loop_.condition_->accept(*this);
-        out_->out(" rob", colors_.keyword_);
+        out_->out(" opakuj", colors_.keyword_);
         w.loop_.body_.accept(*this);
     }
 
     auto PseudocodeGenerator::visit
         (DoWhileLoop const& d) -> void
     {
-        out_->out("Rob", colors_.keyword_);
+        out_->out("Opakuj", colors_.keyword_);
         d.loop_.body_.accept(*this);
         out_->out(" pokiaľ ", colors_.keyword_);
         d.loop_.condition_->accept(*this);
@@ -785,10 +880,10 @@ namespace fri
             case BinOpcode::LE:  return "<=";
             case BinOpcode::GT:  return ">";
             case BinOpcode::GE:  return ">=";
-            case BinOpcode::EQ:  return "==";
+            case BinOpcode::EQ:  return "=";
             case BinOpcode::NE:  return "≠";
 
-            case BinOpcode::Assign: return "<-";
+            case BinOpcode::Assign: return "⇐";
 
             case BinOpcode::AddAssign: return "+";
             case BinOpcode::SubAssign: return "-";
@@ -814,7 +909,7 @@ namespace fri
             case UnOpcode::Deref:   return "sprístupni ";
             case UnOpcode::Address: return "adresa ";
             case UnOpcode::ArNot:   return "-";
-            case UnOpcode::Sizeof:  return "veľkosť ";
+            case UnOpcode::Sizeof:  return "|";
             default:                return "<unknown operator>";
         }
     }
@@ -841,6 +936,16 @@ namespace fri
             case UnOpcode::IncPost:
             case UnOpcode::DecPost: return true;
             default:                return false;
+        }
+    }
+
+    auto PseudocodeGenerator::is_bothtfix
+        (UnOpcode const op) -> bool
+    {
+        switch (op)
+        {
+            case UnOpcode::Sizeof: return true;
+            default:               return false;
         }
     }
 

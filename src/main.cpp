@@ -1,5 +1,6 @@
 #include "clang_source_parser.hpp"
 #include "code_generator.hpp"
+#include "utils.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -8,6 +9,8 @@
 #include <optional>
 #include <utility>
 #include <cassert>
+#include <unordered_map>
+#include <cstring>
 
 namespace
 {
@@ -16,33 +19,133 @@ namespace
         Console, File
     };
 
-    auto color_profile(OutputMode const m)
+    auto try_load_setting(OutputMode const outputMode)
     {
-        switch (m)
+        auto ifst = std::ifstream("/home/michal/Projects/fri-pseudocodes/input/settings.txt");
+        if (not ifst.is_open())
         {
-        case OutputMode::File:
-            return fri::CodeColorInfo { .function_   = fri::Color {191, 144, 0  }
-                                      , .variable_   = fri::Color {0,   112, 192}
-                                      , .keyword_    = fri::Color {0,   32,  96 }
-                                      , .plain_      = fri::Color {0,   0,   0  }
-                                      , .customType_ = fri::Color {0,   176, 80 }
-                                      , .primType_   = fri::Color {0,   32,  96 }
-                                      , .string_     = fri::Color {197, 90,  17 }
-                                      , .valLiteral_ = fri::Color {112, 48,  160} };
-
-        case OutputMode::Console:
-            return fri::CodeColorInfo { .function_   = fri::Color {255, 255, 0  }
-                                      , .variable_   = fri::Color {0,   255, 255}
-                                      , .keyword_    = fri::Color {0,   0,   255}
-                                      , .plain_      = fri::Color {255, 255, 255}
-                                      , .customType_ = fri::Color {0,   255, 0  }
-                                      , .primType_   = fri::Color {0,   0,   255}
-                                      , .string_     = fri::Color {255, 0,   0  }
-                                      , .valLiteral_ = fri::Color {255, 0,   255} };
-
-        default:
-            return fri::CodeColorInfo {};
+            std::cout << "Error: " << std::strerror(errno) << '\n';
+            return fri::OutputSettings {};
         }
+
+        auto const print_ignore = [](auto const& settingName)
+        {
+            std::cout << "Ignoring setting line: " << settingName << '\n';
+        };
+
+        auto settings = fri::OutputSettings();
+        auto colorMap = std::unordered_map<std::string, fri::Color>();
+        auto line = std::string();
+        while (std::getline(ifst, line))
+        {
+            auto words = fri::to_words(std::move(line));
+            auto const& settingName = words[0];
+            if (settingName == "fontSize")
+            {
+                if (words.size() < 2)
+                {
+                    print_ignore(settingName);
+                    continue;
+                }
+                auto const val = fri::parse<unsigned int>(words[1]);
+                if (not val)
+                {
+                    print_ignore(settingName);
+                    continue;
+                }
+                settings.fontSize = val;
+            }
+            else if (settingName == "indent")
+            {
+                if (words.size() < 2)
+                {
+                    print_ignore(settingName);
+                    continue;
+                }
+                auto const val = fri::parse<unsigned int>(words[1]);
+                if (not val)
+                {
+                    print_ignore(settingName);
+                    continue;
+                }
+                settings.indentSpaces = val;
+            }
+            else if (settingName == "colors")
+            {
+                if (not std::getline(ifst, line))
+                {
+                    print_ignore("colors");
+                    break;
+                }
+
+                auto colorWords = fri::to_words(std::move(line));
+                while (colorWords[0] != "end")
+                {
+                    auto& colorTarget = colorWords[0];
+                    if (colorWords.size() < 4)
+                    {
+                        print_ignore(colorTarget);
+                        continue;
+                    }
+                    auto const r = fri::parse<std::uint8_t>(colorWords[1]);
+                    auto const g = fri::parse<std::uint8_t>(colorWords[2]);
+                    auto const b = fri::parse<std::uint8_t>(colorWords[3]);
+                    if (r and g and b)
+                    {
+                        colorMap.emplace(colorTarget, fri::Color {r, g, b});
+                    }
+                    else
+                    {
+                        print_ignore(colorTarget);
+                    }
+                    if (not std::getline(ifst, line))
+                    {
+                        break;
+                    }
+                    colorWords = fri::to_words(std::move(line));
+                }
+
+                auto const color_or_default = [](auto const& cMap, auto const& name)
+                {
+                    auto const it = cMap.find(name);
+                    return it == std::end(cMap) ? fri::Color {0, 0, 0} : it->second;
+                };
+
+                // Temporary exception for console.
+                if (outputMode == OutputMode::Console)
+                {
+                    settings.colors =
+                        fri::CodeColorInfo
+                            { .function_   = fri::Color {255, 255, 0  }
+                            , .variable_   = fri::Color {0,   255, 255}
+                            , .keyword_    = fri::Color {0,   0,   255}
+                            , .plain_      = fri::Color {255, 255, 255}
+                            , .customType_ = fri::Color {0,   255, 0  }
+                            , .primType_   = fri::Color {0,   0,   255}
+                            , .string_     = fri::Color {255, 0,   0  }
+                            , .valLiteral_ = fri::Color {255, 0,   255} };
+                }
+                else
+                {
+                    settings.colors = fri::CodeColorInfo
+                        { .function_   = color_or_default(colorMap, "function")
+                        , .variable_   = color_or_default(colorMap, "variable")
+                        , .keyword_    = color_or_default(colorMap, "keyword")
+                        , .plain_      = color_or_default(colorMap, "plain")
+                        , .customType_ = color_or_default(colorMap, "customType")
+                        , .primType_   = color_or_default(colorMap, "primType")
+                        , .string_     = color_or_default(colorMap, "string")
+                        , .valLiteral_ = color_or_default(colorMap, "valLiteral") };
+                }
+
+            }
+            else
+            {
+                print_ignore(settingName);
+            }
+        }
+
+        return settings;
     }
 
     auto output_file(OutputMode const m, char** argv)
@@ -59,16 +162,18 @@ namespace
 
     using printer_variant_t = std::variant<fri::ConsoleCodePrinter, fri::RtfCodePrinter>;
 
-    auto printer(OutputMode const m, std::optional<std::ofstream>& osfOpt) -> printer_variant_t
+    auto printer( OutputMode const m
+                , std::optional<std::ofstream>& osfOpt
+                , fri::OutputSettings const& settings ) -> printer_variant_t
     {
         switch (m)
         {
         case OutputMode::File:
             assert(osfOpt.has_value());
-            return printer_variant_t(std::in_place_type_t<fri::RtfCodePrinter>(), osfOpt.value());
+            return printer_variant_t(std::in_place_type_t<fri::RtfCodePrinter>(), osfOpt.value(), settings);
 
         default:
-            return printer_variant_t(std::in_place_type_t<fri::ConsoleCodePrinter>());
+            return printer_variant_t(std::in_place_type_t<fri::ConsoleCodePrinter>(), settings);
         }
     }
 
@@ -107,14 +212,17 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    // Possibly read settings or use defaults.
+    auto settings = try_load_setting(outputMode);
+
     // Read the code from the input file.
     auto ist = std::stringstream();
     ist << ifst.rdbuf();
     auto const code = ist.str();
 
     // Analyze the code and generate pseudocode.
-    auto printerVar         = printer(outputMode, ofstOpt);
-    auto generator          = fri::PseudocodeGenerator(printer_ref(printerVar), color_profile(outputMode));
+    auto printerVar         = printer(outputMode, ofstOpt, settings);
+    auto generator          = fri::PseudocodeGenerator(printer_ref(printerVar), settings.colors);
     auto const abstractCode = fri::extract_code(code);
 
     std::cout << "---------------------------------------------" << '\n';

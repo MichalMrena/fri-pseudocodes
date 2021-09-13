@@ -15,27 +15,45 @@ namespace fri
      */
     struct Color
     {
-        std::uint8_t r_;
-        std::uint8_t g_;
-        std::uint8_t b_;
+        std::uint8_t r_ {};
+        std::uint8_t g_ {};
+        std::uint8_t b_ {};
     };
 
     auto operator== (Color const&, Color const&) -> bool;
     auto operator!= (Color const&, Color const&) -> bool;
 
     /**
+     *  @brief Font style.
+     */
+    enum class FontStyle
+    {
+        Bold, Italic
+    };
+
+    /**
      *  @brief Colors of different parts of code.
      */
     struct CodeColorInfo
     {
-        Color function_;
-        Color variable_;
-        Color keyword_;
-        Color plain_;
-        Color customType_;
-        Color primType_;
-        Color string_;
-        Color valLiteral_;
+        Color function_ {};
+        Color variable_ {};
+        Color keyword_ {};
+        Color plain_ {};
+        Color customType_ {};
+        Color primType_ {};
+        Color string_ {};
+        Color valLiteral_ {};
+    };
+
+    /**
+     *  @brief Output settings.
+     */
+    struct OutputSettings
+    {
+        unsigned int fontSize = 9;
+        unsigned int indentSpaces = 2;
+        fri::CodeColorInfo colors {};
     };
 
     /**
@@ -80,6 +98,11 @@ namespace fri
          *  @brief Prints string to the output using given or similar color if possible.
          */
         virtual auto out (std::string_view, Color const&) -> ICodePrinter& = 0;
+
+        /**
+         *  @brief Prints string to the output using given or similar color if possible and given style if possible.
+         */
+        virtual auto out (std::string_view, Color const&, FontStyle) -> ICodePrinter& = 0;
     };
 
     /**
@@ -88,7 +111,7 @@ namespace fri
     class ConsoleCodePrinter : public ICodePrinter
     {
     public:
-        ConsoleCodePrinter  ();
+        ConsoleCodePrinter  (OutputSettings const&);
         ~ConsoleCodePrinter ();
 
         auto inc_indent () -> void override;
@@ -97,8 +120,9 @@ namespace fri
         auto end_line   () -> void override;
         auto blank_line () -> void override;
 
-        auto out        (std::string_view)               -> ConsoleCodePrinter& override;
-        auto out        (std::string_view, Color const&) -> ConsoleCodePrinter& override;
+        auto out (std::string_view)               -> ConsoleCodePrinter& override;
+        auto out (std::string_view, Color const&) -> ConsoleCodePrinter& override;
+        auto out (std::string_view, Color const&, FontStyle) -> ConsoleCodePrinter& override;
 
     private:
         auto set_color   (Color const&) -> void;
@@ -116,7 +140,7 @@ namespace fri
     class RtfCodePrinter : public ICodePrinter
     {
     public:
-        RtfCodePrinter   (std::ofstream&);
+        RtfCodePrinter   (std::ofstream&, OutputSettings const&);
         ~RtfCodePrinter  ();
 
         auto inc_indent  () -> void override;
@@ -125,21 +149,24 @@ namespace fri
         auto end_line    () -> void override;
         auto blank_line  () -> void override;
 
-        auto out         (std::string_view)               -> RtfCodePrinter& override;
-        auto out         (std::string_view, Color const&) -> RtfCodePrinter& override;
+        auto out (std::string_view)               -> RtfCodePrinter& override;
+        auto out (std::string_view, Color const&) -> RtfCodePrinter& override;
+        auto out (std::string_view, Color const&, FontStyle) -> RtfCodePrinter& override;
 
     private:
         auto begin_color (Color const&) -> void;
         auto end_color   ()             -> void;
-
-        static auto color_code (Color const&)     -> unsigned;
-        static auto encode     (std::string_view) -> std::string;
+        auto begin_style (FontStyle)    -> void;
+        auto end_style   (FontStyle)    -> void;
+        auto color_code  (Color const&) -> unsigned;
+        static auto encode (std::string_view) -> std::string;
 
     private:
-        std::ofstream*   ofst_;
-        std::size_t      indentStep_;
-        std::size_t      currentIndent_;
-        std::string_view spaces_;
+        std::ofstream*     ofst_;
+        std::size_t        indentStep_;
+        std::size_t        currentIndent_;
+        std::string_view   spaces_;
+        std::vector<Color> colors_;
     };
 
     /**
@@ -191,10 +218,11 @@ namespace fri
         auto visit (Throw const&)                -> void override;
 
     private:
-        static auto bin_op_to_string (BinOpcode)        -> std::string;
-        static auto un_op_to_string  (UnOpcode)         -> std::string;
-        static auto is_compound_op   (BinOpcode)        -> bool;
-        static auto is_postfixx      (UnOpcode)         -> bool;
+        static auto bin_op_to_string (BinOpcode) -> std::string;
+        static auto un_op_to_string  (UnOpcode)  -> std::string;
+        static auto is_compound_op   (BinOpcode) -> bool;
+        static auto is_postfixx      (UnOpcode)  -> bool;
+        static auto is_bothtfix      (UnOpcode)  -> bool;
 
         auto op_color (std::string_view) -> Color;
 

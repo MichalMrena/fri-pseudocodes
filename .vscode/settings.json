@@ -94,7 +94,8 @@
         "__threading_support": "cpp",
         "__tree": "cpp",
         "__tuple": "cpp",
-        "semaphore": "cpp"
+        "semaphore": "cpp",
+        "numbers": "cpp"
     },
     "python.linting.enabled": true
 }

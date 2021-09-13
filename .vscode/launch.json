@@ -5,8 +5,8 @@
              "name": "(gdb) Launch",
              "type": "cppdbg",
              "request": "launch",
-             "program": "${workspaceFolder}/build/generate-pseudocode",
-             "args": ["input/example_2.cpp"],
+             "program": "${workspaceFolder}/input/generate-pseudocode",
+             "args": ["input/test.cpp"],
              "stopAtEntry": false,
              "cwd": "${workspaceFolder}",
              "environment": [],
@@ -16,7 +16,7 @@
              "setupCommands": [
                 {
                     "description": "Test",
-                    "text": "python import sys;sys.path.insert(0, '/usr/share/gcc-10/python');from libstdcxx.v6.printers import register_libstdcxx_printers;register_libstdcxx_printers(None)",
+                    "text": "python import sys;sys.path.insert(0, '/usr/share/gcc/python');from libstdcxx.v6.printers import register_libstdcxx_printers;register_libstdcxx_printers(None)",
                     "ignoreFailures": false
                 },
                 {
