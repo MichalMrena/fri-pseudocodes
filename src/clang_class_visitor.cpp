@@ -28,7 +28,7 @@ namespace fri
         auto& c = this->get_class(qualName);
         c.name_ = classDecl->getNameAsString();
 
-            context_->getPrintingPolicy();
+            // context_->getPrintingPolicy();
             // std::cout << classDecl->getQualifiedNameAsString() << " : ";
         for (auto const base : classDecl->bases())
         {
@@ -54,47 +54,72 @@ namespace fri
 
         for (auto const field : classDecl->fields())
         {
-            auto& f = c.fields_.emplace_back();
-            f.var_.name_ = field->getNameAsString();
-            f.var_.type_ = extract_type(context_->getPrintingPolicy(), field->getType());
+            c.fields_.emplace_back( extract_type(context_->getPrintingPolicy(), field->getType())
+                                  , field->getNameAsString() );
         }
 
-        for (auto const method : classDecl->methods())
+        for (auto const methodPtr : classDecl->methods())
         {
-            if (method->isImplicit() or method == classDecl->getDestructor())
+            if (methodPtr->isImplicit())
             {
                 continue;
             }
 
-            auto& m    = c.methods_.emplace_back();
-            m.name_    = method->getNameAsString();
-            m.retType_ = extract_type(context_->getPrintingPolicy(), method->getReturnType());
-
-            for (auto i = 0u; i < method->getNumParams(); ++i)
+            // Optional body of Constructor, Destructor or Method.
+            auto methodBody = [this, methodPtr]()
             {
-                auto const param = method->getParamDecl(i);
-                auto& p = m.params_.emplace_back();
-                p.var_.name_ = param->getNameAsString();
-                p.var_.type_ = extract_type(context_->getPrintingPolicy(), param->getType());
-            }
-
-            if (method->isPure())
-            {
-                m.body_ = std::nullopt;
-            }
-            else
-            {
-                auto const body = method->getBody();
-                if (body)
+                if (methodPtr->isPure())
                 {
-                    statementer_.TraverseStmt(body);
-                    auto const compound = statementer_.release_compound();
-                    if (compound)
-                    {
-                        m.body_ = std::move(*compound);
-                    }
+                    return std::optional<CompoundStatement> {};
                 }
+
+                auto const bodyPtr = methodPtr->getBody();
+                if (not bodyPtr)
+                {
+                    return std::optional<CompoundStatement> {};
+                }
+
+                statementer_.TraverseStmt(bodyPtr);
+                auto const compound = statementer_.release_compound();
+                if (compound)
+                {
+                    return std::optional<CompoundStatement>(std::move(*compound));
+                }
+
+                return std::optional<CompoundStatement> {};
+            }();
+
+            // Destructor.
+            if (clang::isa<clang::CXXDestructorDecl>(methodPtr))
+            {
+                c.destructor_ = Destructor(std::move(methodBody));
+                continue;
             }
+
+            // Parameters.
+            auto params = [this, methodPtr]()
+            {
+                auto ps = std::vector<ParamDefinition>();
+                for (auto i = 0u; i < methodPtr->getNumParams(); ++i)
+                {
+                    auto const param = methodPtr->getParamDecl(i);
+                    // param->getInit(); // TODO
+                    ps.emplace_back(extract_type(context_->getPrintingPolicy(), param->getType()), param->getNameAsString());
+                }
+                return ps;
+            }();
+
+            // Constructor.
+            if (clang::isa<clang::CXXConstructorDecl>(methodPtr))
+            {
+                c.constructors_.emplace_back(std::move(params), std::move(methodBody));
+                continue;
+            }
+
+            // Normal method.
+            auto retType = extract_type(context_->getPrintingPolicy(), methodPtr->getReturnType());
+            auto name = methodPtr->getNameAsString();
+            c.methods_.emplace_back(std::move(name), std::move(retType), std::move(params), std::move(methodBody));
         }
 
         return true;

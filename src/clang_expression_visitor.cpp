@@ -268,10 +268,7 @@ namespace fri
             auto params = std::vector<ParamDefinition>();
             for (auto const p : l->getCallOperator()->parameters())
             {
-                params.emplace_back();
-                auto& param = params.back();
-                param.var_.name_ = p->getNameAsString();
-                param.var_.type_ = extract_type(context_->getPrintingPolicy(), p->getType());
+                params.emplace_back(extract_type(context_->getPrintingPolicy(), p->getType()), p->getNameAsString());
             }
             expression_ = std::make_unique<Lambda>( std::move(params)
                                                   , std::move(*body) );

@@ -269,11 +269,11 @@ namespace fri
         switch (s)
         {
             case FontStyle::Bold:
-                *ofst_ << R"(\b)";
+                *ofst_ << R"(\b )";
                 break;
 
             case FontStyle::Italic:
-                *ofst_ << R"(\i)";
+                *ofst_ << R"(\i )";
                 break;
 
             default:
@@ -423,23 +423,8 @@ namespace fri
     auto PseudocodeGenerator::visit
         (MemberVarRef const& m) -> void
     {
-        // if (not is_this(m.base_))
-        // {
-        //     m.base_->accept(*this);
-
-            // if (is_indirection(m.base_))
-            // {
-            //     out_->out("→", colors_.plain_);
-            // }
-            // else
-            // {
-            //     out_->out(".", colors_.plain_);
-            // }
-        // }
-
-        m.base_->accept(*this);
-        out_->out(".", colors_.plain_);
-        out_->out(m.name_, colors_.variable_);
+        this->visit_member_base(*m.base_);
+        out_->out(m.name_, colors_.variable_, FontStyle::Bold);
     }
 
     auto PseudocodeGenerator::visit
@@ -540,8 +525,17 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Indirection const& p) -> void
     {
-        p.pointee_->accept(*this);
-        out_->out("↑", colors_.plain_);
+        auto isVoidChecker = IsVoidVisitor();
+        p.pointee_->accept(isVoidChecker);
+        if (isVoidChecker.result())
+        {
+            out_->out("adresa", colors_.primType_);
+        }
+        else
+        {
+            p.pointee_->accept(*this);
+            out_->out("↑", colors_.plain_);
+        }
     }
 
     auto PseudocodeGenerator::visit
@@ -598,12 +592,18 @@ namespace fri
         out_->end_line();
         out_->inc_indent();
 
-        // Visit methods.
+        // Visit constructor declarations.
+        for (auto const& con : c.constructors_)
+        {
+            this->visit_decl(con);
+        }
+
+        // Visit method declarations.
         auto const end = std::end(c.methods_);
         auto it = std::begin(c.methods_);
         while (it != end)
         {
-            it->accept(*this);
+            this->visit_decl(*it);
             ++it;
 
             if (it != end)
@@ -628,6 +628,30 @@ namespace fri
         out_->out("}");
         out_->end_line();
         out_->end_line();
+
+        // Visit constructor definitions.
+        // Visit constructor declarations.
+        for (auto const& constr : c.constructors_)
+        {
+            this->visit_def(c, constr);
+        }
+
+        // Visit method definitions.
+        it = std::begin(c.methods_);
+        while (it != end)
+        {
+            this->visit_def(c, *it);
+            ++it;
+
+            if (it != end)
+            {
+                out_->blank_line();
+            }
+            else if (not c.fields_.empty())
+            {
+                out_->blank_line();
+            }
+        }
     }
 
     auto PseudocodeGenerator::visit
@@ -800,8 +824,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (MemberFunctionCall const& m) -> void
     {
-        m.base_->accept(*this);
-        out_->out(".", colors_.plain_);
+        this->visit_member_base(*m.base_);
         out_->out(m.call_, colors_.function_);
         out_->out("(", colors_.plain_);
         this->visit_range(", ", std::begin(m.args_), std::end(m.args_));
@@ -906,7 +929,7 @@ namespace fri
             case UnOpcode::DecPre:  return "--";
             case UnOpcode::DecPost: return "--";
             case UnOpcode::LogNot:  return "nie ";
-            case UnOpcode::Deref:   return "sprístupni ";
+            case UnOpcode::Deref:   return "↓";
             case UnOpcode::Address: return "adresa ";
             case UnOpcode::ArNot:   return "-";
             case UnOpcode::Sizeof:  return "|";
@@ -949,6 +972,106 @@ namespace fri
         }
     }
 
+    auto PseudocodeGenerator::visit_decl
+        (Method const& m) -> void
+    {
+        out_->begin_line();
+        out_->out("operácia ", colors_.keyword_);
+        out_->out(m.name_, colors_.function_);
+        out_->out("(", colors_.plain_);
+
+        this->visit_range(", ", std::begin(m.params_), std::end(m.params_));
+
+        out_->out("): ", colors_.plain_);
+        m.retType_->accept(*this);
+    }
+
+    auto PseudocodeGenerator::visit_decl
+        (Constructor const& c) -> void
+    {
+        out_->begin_line();
+        out_->out("konštruktor ", colors_.keyword_);
+        out_->out("(", colors_.plain_);
+        this->visit_range(", ", std::begin(c.params_), std::end(c.params_));
+        out_->out(") ", colors_.plain_);
+        out_->end_line();
+    }
+
+    auto PseudocodeGenerator::visit_decl
+        (Destructor const&) -> void
+    {
+        out_->out("deštruktor ", colors_.keyword_);
+    }
+
+    auto PseudocodeGenerator::visit_def
+        (Class const& c, Method const& m) -> void
+    {
+        out_->begin_line();
+        out_->out("operácia ", colors_.keyword_);
+        this->visit_class_name(c);
+        out_->out(".");
+        out_->out(m.name_, colors_.function_);
+        out_->out("(", colors_.plain_);
+
+        this->visit_range(", ", std::begin(m.params_), std::end(m.params_));
+
+        out_->out("): ", colors_.plain_);
+        m.retType_->accept(*this);
+
+        if (m.body_.has_value())
+        {
+            m.body_.value().accept(*this);
+        }
+        out_->end_line();
+    }
+
+    auto PseudocodeGenerator::visit_def
+        (Class const& c, Constructor const& con) -> void
+    {
+        out_->begin_line();
+        out_->out("konštruktor ", colors_.keyword_);
+        this->visit_class_name(c);
+        out_->out("(", colors_.plain_);
+        this->visit_range(", ", std::begin(con.params_), std::end(con.params_));
+        out_->out(")", colors_.plain_);
+        if (con.body_)
+        {
+            con.body_->accept(*this);
+        }
+        out_->end_line();
+    }
+
+    auto PseudocodeGenerator::visit_def
+        (Class const& c, Destructor const& d) -> void
+    {
+        out_->begin_line();
+        out_->out("deštruktor ", colors_.keyword_);
+        this->visit_class_name(c);
+        if (d.body_)
+        {
+            d.body_->accept(*this);
+        }
+        out_->end_line();
+    }
+
+    auto PseudocodeGenerator::visit_class_name
+        (Class const& c) -> void
+    {
+        out_->out(c.name_, colors_.customType_);
+    }
+
+    auto PseudocodeGenerator::visit_member_base
+        (Expression const& e) -> void
+    {
+        auto isThisChecker = IsThisVisitor();
+        e.accept(isThisChecker);
+        if (not isThisChecker.result())
+        {
+            e.accept(*this);
+            out_->out("→", colors_.plain_);
+        }
+    }
+
     auto PseudocodeGenerator::op_color
         (std::string_view const s) -> Color
     {
@@ -979,5 +1102,23 @@ namespace fri
                 out_->out(sep, colors_.plain_);
             }
         }
+    }
+
+    auto IsCheckVisitorBase::result
+        () const -> bool
+    {
+        return result_;
+    }
+
+    auto IsVoidVisitor::visit
+        (PrimType const& t) -> void
+    {
+        result_ = t.name_ == "void";
+    }
+
+    auto IsThisVisitor::visit
+        (This const&) -> void
+    {
+        result_ = true;
     }
 }

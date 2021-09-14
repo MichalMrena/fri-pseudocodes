@@ -49,17 +49,19 @@ namespace fri
     auto StatementVisitor::VisitVarDecl
         (clang::VarDecl* decl) -> bool
     {
-        auto def = std::make_unique<VarDefinition>();
-
-        def->var_.type_ = extract_type(context_->getPrintingPolicy(), decl->getType());
-        def->var_.name_ = decl->getName().str();
         auto const init = decl->getInit();
         if (init)
         {
-            def->var_.initializer_ = expressioner_.read_expression(init);
+            statement_ = std::make_unique<VarDefinition>
+                ( extract_type(context_->getPrintingPolicy(), decl->getType())
+                , decl->getName().str(), expressioner_.read_expression(init) );
         }
-
-        statement_ = std::move(def);
+        else
+        {
+            statement_ = std::make_unique<VarDefinition>
+                ( extract_type(context_->getPrintingPolicy(), decl->getType())
+                , decl->getName().str() );
+        }
         return false;
     }
 

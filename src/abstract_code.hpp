@@ -75,16 +75,22 @@ namespace fri
         std::unique_ptr<Type>       type_;
         std::string                 name_;
         std::unique_ptr<Expression> initializer_ {};
+        VarDefCommon(std::unique_ptr<Type>, std::string);
+        VarDefCommon(std::unique_ptr<Type>, std::string, std::unique_ptr<Expression>);
     };
 
-    struct ParamDefinition : public Visitable<ParamDefinition> // TODO construcotr...
+    struct ParamDefinition : public Visitable<ParamDefinition>
     {
         VarDefCommon var_;
+        ParamDefinition(std::unique_ptr<Type>, std::string);
+        ParamDefinition(std::unique_ptr<Type>, std::string, std::unique_ptr<Expression>);
     };
 
     struct FieldDefinition : public Visitable<FieldDefinition>
     {
         VarDefCommon var_;
+        FieldDefinition(std::unique_ptr<Type>, std::string);
+        FieldDefinition(std::unique_ptr<Type>, std::string, std::unique_ptr<Expression>);
     };
 
 // Expressions:
@@ -163,6 +169,7 @@ namespace fri
 
     struct MemberVarRef : public VisitableFamily<Expression, MemberVarRef>
     {
+        bool                        indirectBase_;
         std::unique_ptr<Expression> base_;
         std::string                 name_;
         MemberVarRef (std::unique_ptr<Expression>, std::string);
@@ -197,6 +204,7 @@ namespace fri
 
     struct MemberFunctionCall : public VisitableFamily<Expression, MemberFunctionCall>
     {
+        bool                                     indirectBase_;
         std::unique_ptr<Expression>              base_;
         std::string                              call_;
         std::vector<std::unique_ptr<Expression>> args_;
@@ -233,6 +241,8 @@ namespace fri
     struct VarDefinition : public VisitableFamily<Statement, VarDefinition>
     {
         VarDefCommon var_;
+        VarDefinition(std::unique_ptr<Type>, std::string);
+        VarDefinition(std::unique_ptr<Type>, std::string, std::unique_ptr<Expression>);
     };
 
     struct CompoundStatement : public VisitableFamily<Statement, CompoundStatement>
@@ -305,12 +315,30 @@ namespace fri
 
 // Other:
 
+    struct Constructor : public Visitable<Constructor>
+    {
+        std::vector<ParamDefinition>     params_;
+        std::optional<CompoundStatement> body_ {};
+        Constructor( std::vector<ParamDefinition>
+                   , std::optional<CompoundStatement> );
+    };
+
+    struct Destructor : public Visitable<Constructor>
+    {
+        std::optional<CompoundStatement> body_;
+        Destructor(std::optional<CompoundStatement>);
+    };
+
     struct Method : public Visitable<Method>
     {
         std::string                      name_;
         std::unique_ptr<Type>            retType_;
         std::vector<ParamDefinition>     params_;
         std::optional<CompoundStatement> body_ {};
+        Method( std::string
+              , std::unique_ptr<Type>
+              , std::vector<ParamDefinition>
+              , std::optional<CompoundStatement> );
     };
 
     auto is_pure_virtual (Method const&) -> bool;
@@ -319,6 +347,8 @@ namespace fri
     {
         std::string                  qualName_;
         std::string                  name_;
+        std::vector<Constructor>     constructors_;
+        std::optional<Destructor>    destructor_;
         std::vector<Method>          methods_;
         std::vector<FieldDefinition> fields_;
         std::vector<Class*>          bases_;

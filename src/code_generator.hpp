@@ -201,16 +201,16 @@ namespace fri
         auto visit (CustomType const&)           -> void override;
         auto visit (Indirection const&)          -> void override;
 
-        auto visit (Class const& c)              -> void override;
-        auto visit (Method const& c)             -> void override;
-        auto visit (VarDefCommon const& c)       -> void override;
-        auto visit (FieldDefinition const& c)    -> void override;
-        auto visit (ParamDefinition const& c)    -> void override;
-        auto visit (VarDefinition const& c)      -> void override;
-        auto visit (ForLoop const& c)            -> void override;
-        auto visit (WhileLoop const& c)          -> void override;
-        auto visit (DoWhileLoop const& c)        -> void override;
-        auto visit (CompoundStatement const& c)  -> void override;
+        auto visit (Class const&)                -> void override;
+        auto visit (Method const&)               -> void override;
+        auto visit (VarDefCommon const&)         -> void override;
+        auto visit (FieldDefinition const&)      -> void override;
+        auto visit (ParamDefinition const&)      -> void override;
+        auto visit (VarDefinition const&)        -> void override;
+        auto visit (ForLoop const&)              -> void override;
+        auto visit (WhileLoop const&)            -> void override;
+        auto visit (DoWhileLoop const&)          -> void override;
+        auto visit (CompoundStatement const&)    -> void override;
         auto visit (ExpressionStatement const&)  -> void override;
         auto visit (Return const&)               -> void override;
         auto visit (If const&)                   -> void override;
@@ -224,6 +224,16 @@ namespace fri
         static auto is_postfixx      (UnOpcode)  -> bool;
         static auto is_bothtfix      (UnOpcode)  -> bool;
 
+        auto visit_decl (Method const&)      -> void;
+        auto visit_decl (Constructor const&) -> void;
+        auto visit_decl (Destructor const&)  -> void;
+        auto visit_def  (Class const&, Method const&)      -> void;
+        auto visit_def  (Class const&, Constructor const&) -> void;
+        auto visit_def  (Class const&, Destructor const&)  -> void;
+
+        auto visit_member_base (Expression const&) -> void;
+        auto visit_class_name  (Class const&) -> void;
+
         auto op_color (std::string_view) -> Color;
 
         template<class InputIt>
@@ -232,6 +242,85 @@ namespace fri
     private:
         ICodePrinter* out_;
         CodeColorInfo colors_;
+    };
+
+    /**
+     *  @brief Adapter that implements methods as empty.
+     */
+    class CodeVisitorAdapter : public CodeVisitor
+    {
+        auto visit (IntLiteral const&)           -> void override {};
+        auto visit (FloatLiteral const&)         -> void override {};
+        auto visit (StringLiteral const&)        -> void override {};
+        auto visit (NullLiteral const&)          -> void override {};
+        auto visit (BoolLiteral const&)          -> void override {};
+        auto visit (BinaryOperator const&)       -> void override {};
+        auto visit (Parenthesis const&)          -> void override {};
+        auto visit (VarRef const&)               -> void override {};
+        auto visit (MemberVarRef const&)         -> void override {};
+        auto visit (UnaryOperator const&)        -> void override {};
+        auto visit (New const&)                  -> void override {};
+        auto visit (FunctionCall const&)         -> void override {};
+        auto visit (ConstructorCall const&)      -> void override {};
+        auto visit (DestructorCall const&)       -> void override {};
+        auto visit (MemberFunctionCall const&)   -> void override {};
+        auto visit (ExpressionCall const&)       -> void override {};
+        auto visit (This const&)                 -> void override {};
+        auto visit (IfExpression const&)         -> void override {};
+        auto visit (Lambda const&)               -> void override {};
+
+        auto visit (PrimType const&)             -> void override {};
+        auto visit (CustomType const&)           -> void override {};
+        auto visit (Indirection const&)          -> void override {};
+
+        auto visit (Class const&)                -> void override {};
+        auto visit (Method const&)               -> void override {};
+        auto visit (VarDefCommon const&)         -> void override {};
+        auto visit (FieldDefinition const&)      -> void override {};
+        auto visit (ParamDefinition const&)      -> void override {};
+        auto visit (VarDefinition const&)        -> void override {};
+        auto visit (ForLoop const&)              -> void override {};
+        auto visit (WhileLoop const&)            -> void override {};
+        auto visit (DoWhileLoop const&)          -> void override {};
+        auto visit (CompoundStatement const&)    -> void override {};
+        auto visit (ExpressionStatement const&)  -> void override {};
+        auto visit (Return const&)               -> void override {};
+        auto visit (If const&)                   -> void override {};
+        auto visit (Delete const&)               -> void override {};
+        auto visit (Throw const&)                -> void override {};
+    };
+
+    class IsCheckVisitorBase : public CodeVisitorAdapter
+    {
+    public:
+        auto result () const -> bool;
+
+    protected:
+        bool result_ {false};
+    };
+
+    /**
+     *  @brief Checks whether given type is void.
+     */
+    struct IsVoidVisitor : public IsCheckVisitorBase
+    {
+        auto visit (PrimType const&) -> void override;
+    };
+
+    /**
+     *  @brief Check if given expression is this pointer.
+     */
+    struct IsThisVisitor : public IsCheckVisitorBase
+    {
+        auto visit (This const&) -> void override;
+    };
+
+    /**
+     *  @brief Check
+     */
+    struct IsIndirectionVisitor : public IsCheckVisitorBase
+    {
+        auto visit (Indirection const&) -> void override;
     };
 }
 
