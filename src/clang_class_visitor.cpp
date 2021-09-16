@@ -21,6 +21,7 @@ namespace fri
         (clang::CXXRecordDecl* classDecl) -> bool
     {
         auto const qualName = classDecl->getQualifiedNameAsString();
+        // Only classes from our namespaces.
         if (not this->should_visit(qualName))
         {
             return true;
@@ -29,6 +30,20 @@ namespace fri
         auto& c = this->get_class(qualName);
         c.name_ = classDecl->getNameAsString();
 
+        // If it is a template, read all parameters.
+        if (classDecl->isTemplated())
+        {
+            auto temDecl = classDecl->getDescribedTemplate();
+            if (temDecl)
+            {
+                for (auto param : *temDecl->getTemplateParameters())
+                {
+                    c.templateParams_.emplace_back(param->getNameAsString());
+                }
+            }
+        }
+
+        // Read all base classes.
         for (auto const base : classDecl->bases())
         {
             auto const bt = base.getType();
@@ -44,12 +59,14 @@ namespace fri
 
         }
 
+        // Read all member variables.
         for (auto const field : classDecl->fields())
         {
             c.fields_.emplace_back( extract_type(context_->getPrintingPolicy(), field->getType())
                                   , field->getNameAsString() );
         }
 
+        // Read all methods.
         for (auto const methodPtr : classDecl->methods())
         {
             if (methodPtr->isImplicit())
@@ -123,24 +140,7 @@ namespace fri
                     else if (init->isBaseInitializer())
                     {
                         auto baseType = init->getBaseClass();
-                        auto name = [baseType]()
-                        {
-                            if (auto icn = clang::dyn_cast<clang::InjectedClassNameType>(baseType))
-                            {
-                                return icn->getDecl()->getNameAsString();
-                            }
-                            else if (auto rec = clang::dyn_cast<clang::RecordType>(baseType))
-                            {
-                                baseType->dump();
-                                return std::string("record");
-                            }
-                            else
-                            {
-                                baseType->dump();
-                                return std::string("base");
-                            }
-                        }();
-
+                        auto name = this->get_base_name(baseType);
                         baseInitList.emplace_back( std::move(name)
                                                  , std::move(exprs) );
                     }
@@ -160,6 +160,25 @@ namespace fri
         }
 
         return true;
+    }
+
+    auto ClassVisitor::get_base_name
+        (clang::Type const* t) -> std::string
+    {
+        if (auto icn = clang::dyn_cast<clang::InjectedClassNameType>(t))
+        {
+            return icn->getDecl()->getNameAsString();
+        }
+        else if (auto tst = clang::dyn_cast<clang::TemplateSpecializationType>(t))
+        {
+            auto tDecl = tst->getTemplateName().getAsTemplateDecl();
+            return tDecl ? tDecl->getNameAsString() : "<unknown template>";
+        }
+        else
+        {
+            t->dump();
+            return std::string("base");
+        }
     }
 
     auto ClassVisitor::get_class

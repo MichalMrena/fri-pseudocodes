@@ -33,6 +33,18 @@ namespace fri
 
 // Color definitions:
 
+    auto to_string (Color const& c) -> std::string
+    {
+        auto res = std::string("Color(");
+        res += std::to_string(c.r_);
+        res += ", ";
+        res += std::to_string(c.g_);
+        res += ", ";
+        res += std::to_string(c.b_);
+        res += ")";
+        return res;
+    }
+
     auto operator== (Color const& l, Color const& r) -> bool
     {
         return l.r_ == r.r_
@@ -377,11 +389,12 @@ namespace fri
         (BinaryOperator const& b) -> void
     {
         auto const opstr = bin_op_to_string(b.op_);
-        // auto const color = this->op_color(opstr); // TODO
         if (is_compound_op(b.op_))
         {
             b.lhs_->accept(*this);
-            out_->out(" <- "); // TODO visit assign
+            out_->out(" ");
+            out_->out(bin_op_to_string(BinOpcode::Assign));
+            out_->out(" ");
             b.lhs_->accept(*this);
             out_->out(" ").out(opstr).out(" ");
             b.rhs_->accept(*this);
@@ -521,10 +534,17 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Class const& c) -> void
     {
+        // TODO base classes as templates, add visit_class_name
         // Class header.
         out_->begin_line();
         out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", style_.keyword_);
         out_->out(c.name_.empty() ? c.qualName_ : c.name_, style_.customType_);
+        if (not c.templateParams_.empty())
+        {
+            out_->out("<");
+            this->output_range(c.templateParams_, ", ", style_.customType_);
+            out_->out(">");
+        }
 
         // Split base classes to interfaces and classes.
         auto bases          = c.bases_;
@@ -963,6 +983,7 @@ namespace fri
         for (auto const& base : c.baseInitList_)
         {
             out_->begin_line();
+            out_->out("inicializuj predka ", style_.keyword_);
             out_->out(base.name_, style_.customType_);
             out_->out("(");
             this->visit_range(", ", std::begin(base.init_), std::end(base.init_));
@@ -1105,6 +1126,23 @@ namespace fri
         (std::string_view const s) -> Color
     {
         return not s.empty() and std::isalnum(s.front()) ? style_.keyword_.color_ : style_.plain_.color_;
+    }
+
+    template<class Range>
+    auto PseudocodeGenerator::output_range
+        (Range&& xs, std::string_view glue, TextStyle const& s) -> void
+    {
+        auto const end = std::end(xs);
+        auto it = std::begin(xs);
+        while (it != end)
+        {
+            out_->out(*it, s);
+            ++it;
+            if (it != end)
+            {
+                out_->out(glue);
+            }
+        }
     }
 
     template<class InputIt>

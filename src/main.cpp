@@ -27,13 +27,32 @@ namespace
                                fri::FontStyle::Normal;
     }
 
+    auto console_dummy_settings()
+    {
+        auto ret = fri::OutputSettings {};
+        ret.style = fri::CodeStyleInfo
+            { .function_       = fri::TextStyle {fri::Color {255, 255, 0  }, fri::FontStyle::Normal}
+            , .variable_       = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
+            , .memberVariable_ = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
+            , .keyword_        = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
+            , .plain_          = fri::TextStyle {fri::Color {255, 255, 255}, fri::FontStyle::Normal}
+            , .customType_     = fri::TextStyle {fri::Color {0,   255, 0  }, fri::FontStyle::Normal}
+            , .primType_       = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
+            , .stringLiteral_  = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal}
+            , .valLiteral_     = fri::TextStyle {fri::Color {255, 0,   255}, fri::FontStyle::Normal}
+            , .numLiteral_     = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal} };
+        return ret;
+    }
+
     auto try_load_setting(OutputMode const outputMode)
     {
-        auto ifst = std::ifstream("/home/michal/Projects/fri-pseudocodes/input/settings.txt");
+        auto ifst = std::ifstream("settings.txt");
         if (not ifst.is_open())
         {
-            std::cout << "Error: " << std::strerror(errno) << '\n';
-            return fri::OutputSettings {};
+            std::cerr << "Settings error: " << std::strerror(errno) << '\n';
+            return outputMode == OutputMode::Console
+                       ? console_dummy_settings()
+                       : fri::OutputSettings {};
         }
 
         auto const print_ignore = [](auto const& settingName)
@@ -144,18 +163,7 @@ namespace
                 // Temporary exception for console.
                 if (outputMode == OutputMode::Console)
                 {
-                    settings.style =
-                        fri::CodeStyleInfo
-                        { .function_       = fri::TextStyle {fri::Color {255, 255, 0  }, fri::FontStyle::Normal}
-                        , .variable_       = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
-                        , .memberVariable_ = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
-                        , .keyword_        = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
-                        , .plain_          = fri::TextStyle {fri::Color {255, 255, 255}, fri::FontStyle::Normal}
-                        , .customType_     = fri::TextStyle {fri::Color {0,   255, 0  }, fri::FontStyle::Normal}
-                        , .primType_       = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
-                        , .stringLiteral_  = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal}
-                        , .valLiteral_     = fri::TextStyle {fri::Color {255, 0,   255}, fri::FontStyle::Normal}
-                        , .numLiteral_     = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal} };
+                    return console_dummy_settings();
                 }
                 else
                 {
@@ -247,6 +255,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
+        // TODO inicializuj [predka] iba ak je to naozaj predok
+
     // Possibly read settings or use defaults.
     auto settings = try_load_setting(outputMode);
 
@@ -266,19 +276,3 @@ int main(int argc, char** argv)
         c->accept(generator);
     }
 }
-
-// font       Consolas
-// fontSize   9
-// indent     2
-// style
-//     function       normal 191 144 0
-//     variable       normal 0   112 192
-//     memberVariable italic 0   112 192
-//     keyword        bold   0   32  96
-//     plain          normal 0   0   0
-//     customType     normal 0   176 80
-//     primType       normal 0   32  96
-//     stringLiteral  normal 197 90  17
-//     valLiteral     normal 112 48  160
-//     numLiteral     normal 197 90  17
-// end style

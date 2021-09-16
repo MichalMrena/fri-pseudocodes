@@ -20,6 +20,7 @@ namespace fri
         std::uint8_t b_ {};
     };
 
+    auto to_string  (Color const& c) -> std::string;
     auto operator== (Color const&, Color const&) -> bool;
     auto operator!= (Color const&, Color const&) -> bool;
 
@@ -242,6 +243,9 @@ namespace fri
         auto visit_class_name  (Class const&) -> void;
 
         auto op_color (std::string_view) -> Color;
+
+        template<class Range>
+        auto output_range (Range&&, std::string_view, TextStyle const&) -> void;
 
         template<class InputIt>
         auto visit_range (std::string_view, InputIt, InputIt) -> void;

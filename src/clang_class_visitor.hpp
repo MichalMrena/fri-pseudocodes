@@ -18,8 +18,9 @@ namespace fri
         auto VisitCXXRecordDecl (clang::CXXRecordDecl* classDecl) -> bool;
 
     private:
-        auto get_class    (std::string const&) -> Class&;
-        auto should_visit (std::string_view qalName) const -> bool;
+        auto get_base_name (clang::Type const*)  -> std::string;
+        auto get_class     (std::string const&)  -> Class&;
+        auto should_visit  (std::string_view qalName) const -> bool;
 
     private:
         std::vector<std::unique_ptr<Class>>* classes_;

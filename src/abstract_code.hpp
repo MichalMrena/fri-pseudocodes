@@ -62,6 +62,12 @@ namespace fri
         CustomType (std::string name);
     };
 
+    struct TemplatedType : public VisitableFamily<Type, TemplatedType>
+    {
+        std::unique_ptr<Type> base_;
+        std::vector<std::unique_ptr<Type>> params_;
+    };
+
     struct Indirection : public VisitableFamily<Type, Indirection>
     {
         std::unique_ptr<Type> pointee_ {};
@@ -365,6 +371,7 @@ namespace fri
     {
         std::string                  qualName_;
         std::string                  name_;
+        std::vector<std::string>     templateParams_;
         std::vector<Constructor>     constructors_;
         std::optional<Destructor>    destructor_;
         std::vector<Method>          methods_;
