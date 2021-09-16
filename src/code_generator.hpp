@@ -28,7 +28,7 @@ namespace fri
      */
     enum class FontStyle
     {
-        Bold, Italic
+        Normal, Bold, Italic
     };
 
     /**
@@ -44,6 +44,30 @@ namespace fri
         Color primType_ {};
         Color string_ {};
         Color valLiteral_ {};
+    };
+
+    /**
+     *  @brief Style of different parts of code.
+     */
+    struct CodeStyleInfo
+    {
+        FontStyle function_ {FontStyle::Normal};
+        FontStyle variable_ {FontStyle::Normal};
+        FontStyle keyword_ {FontStyle::Normal};
+        FontStyle plain_ {FontStyle::Normal};
+        FontStyle customType_ {FontStyle::Normal};
+        FontStyle primType_ {FontStyle::Normal};
+        FontStyle string_ {FontStyle::Normal};
+        FontStyle valLiteral_ {FontStyle::Normal};
+    };
+
+    /**
+     *  @brief Text style.
+     */
+    struct CodeStyle
+    {
+        Color color_ {};
+        FontStyle style_ {FontStyle::Normal};
     };
 
     /**
@@ -223,6 +247,8 @@ namespace fri
         static auto is_compound_op   (BinOpcode) -> bool;
         static auto is_postfixx      (UnOpcode)  -> bool;
         static auto is_bothtfix      (UnOpcode)  -> bool;
+
+        auto visit (Constructor const&, CompoundStatement const&) -> void;
 
         auto visit_decl (Method const&)      -> void;
         auto visit_decl (Constructor const&) -> void;

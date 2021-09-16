@@ -9,10 +9,11 @@ namespace fri
         ( clang::ASTContext& context
         , std::vector<std::unique_ptr<Class>>& classes
         , std::vector<std::string> const& namespaces ) :
-        classes_     (&classes),
-        namespaces_  (&namespaces),
-        context_     (&context),
-        statementer_ (context)
+        classes_      (&classes),
+        namespaces_   (&namespaces),
+        context_      (&context),
+        statementer_  (context),
+        expressioner_ (statementer_, context)
     {
     }
 
@@ -28,8 +29,6 @@ namespace fri
         auto& c = this->get_class(qualName);
         c.name_ = classDecl->getNameAsString();
 
-            // context_->getPrintingPolicy();
-            // std::cout << classDecl->getQualifiedNameAsString() << " : ";
         for (auto const base : classDecl->bases())
         {
             auto const bt = base.getType();
@@ -37,20 +36,13 @@ namespace fri
             {
                 auto const baseDecl = bt->getAs<clang::RecordType>()->getAsCXXRecordDecl();
                 c.bases_.emplace_back(&this->get_class(baseDecl->getQualifiedNameAsString()));
-                    // std::cout << baseDecl->getQualifiedNameAsString() << " ";
             }
             else if (auto const tt = clang::dyn_cast<clang::TemplateSpecializationType>(bt.getTypePtr()))
             {
                 c.bases_.emplace_back(&this->get_class(tt->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString()));
-                    // std::cout << tt->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString() << " ";
-            }
-            else
-            {
-                    // std::cout << "<other> ";
             }
 
         }
-            // std::cout << '\n';
 
         for (auto const field : classDecl->fields())
         {
@@ -110,9 +102,54 @@ namespace fri
             }();
 
             // Constructor.
-            if (clang::isa<clang::CXXConstructorDecl>(methodPtr))
+            if (auto const conDecl = clang::dyn_cast<clang::CXXConstructorDecl>(methodPtr))
             {
-                c.constructors_.emplace_back(std::move(params), std::move(methodBody));
+                auto con = clang::dyn_cast<clang::CXXConstructorDecl>(conDecl->getDefinition());
+                if (not con)
+                {
+                    continue;
+                }
+                auto baseInitList = std::vector<BaseInitPair>();
+                auto initList = std::vector<MemberInitPair>();
+                for (auto const& init : con->inits())
+                {
+                    auto exprs = expressioner_.read_expressions(init->getInit());
+                    if (init->isMemberInitializer())
+                    {
+                        auto name = init->getMember()->getNameAsString();
+                        initList.emplace_back( std::move(name)
+                                             , std::move(exprs) );
+                    }
+                    else if (init->isBaseInitializer())
+                    {
+                        auto baseType = init->getBaseClass();
+                        auto name = [baseType]()
+                        {
+                            if (auto icn = clang::dyn_cast<clang::InjectedClassNameType>(baseType))
+                            {
+                                return icn->getDecl()->getNameAsString();
+                            }
+                            else if (auto rec = clang::dyn_cast<clang::RecordType>(baseType))
+                            {
+                                baseType->dump();
+                                return std::string("record");
+                            }
+                            else
+                            {
+                                baseType->dump();
+                                return std::string("base");
+                            }
+                        }();
+
+                        baseInitList.emplace_back( std::move(name)
+                                                 , std::move(exprs) );
+                    }
+                }
+
+                c.constructors_.emplace_back( std::move(params)
+                                            , std::move(baseInitList)
+                                            , std::move(initList)
+                                            , std::move(methodBody) );
                 continue;
             }
 

@@ -26,6 +26,7 @@ namespace fri
         std::vector<std::string> const*      namespaces_;
         clang::ASTContext*                   context_;
         StatementVisitor                     statementer_;
+        ExpressionVisitor                    expressioner_;
     };
 }
 

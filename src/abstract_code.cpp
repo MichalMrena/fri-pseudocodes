@@ -283,11 +283,31 @@ namespace fri
     {
     }
 
+    BaseInitPair::BaseInitPair
+        ( std::string                              n
+        , std::vector<std::unique_ptr<Expression>> es ) :
+        name_ (std::move(n)),
+        init_ (std::move(es))
+    {
+    }
+
+    MemberInitPair::MemberInitPair
+        ( std::string                              n
+        , std::vector<std::unique_ptr<Expression>> es ) :
+        name_ (std::move(n)),
+        init_ (std::move(es))
+    {
+    }
+
     Constructor::Constructor
-        ( std::vector<ParamDefinition> ps
+        ( std::vector<ParamDefinition>     ps
+        , std::vector<BaseInitPair>        bis
+        , std::vector<MemberInitPair>      is
         , std::optional<CompoundStatement> b ) :
-        params_ (std::move(ps)),
-        body_   (std::move(b))
+        params_       (std::move(ps)),
+        baseInitList_ (std::move(bis)),
+        initList_     (std::move(is)),
+        body_         (std::move(b))
     {
     }
 

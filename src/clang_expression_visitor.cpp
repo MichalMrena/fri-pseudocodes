@@ -21,6 +21,18 @@ namespace fri
                            : std::make_unique<StringLiteral>("<unknown expression>");
     }
 
+    auto ExpressionVisitor::read_expressions
+        (clang::Stmt* const s) -> std::vector<std::unique_ptr<Expression>>
+    {
+        expressions_ = std::vector<std::unique_ptr<Expression>>();
+        this->TraverseStmt(s);
+        if (expression_)
+        {
+            expressions_.emplace_back(std::move(expression_));
+        }
+        return std::vector<std::unique_ptr<Expression>>(std::move(expressions_));
+    }
+
     auto ExpressionVisitor::VisitIntegerLiteral
         (clang::IntegerLiteral* const i) -> bool
     {
@@ -46,6 +58,26 @@ namespace fri
         (clang::ParenExpr* const p) -> bool
     {
         expression_ = std::make_unique<Parenthesis>(this->read_expression(p->getSubExpr()));
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitParenListExpr
+        (clang::ParenListExpr* es) -> bool
+    {
+        for (auto const e : es->exprs())
+        {
+            expressions_.emplace_back(this->read_expression(e));
+        }
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitCXXConstructExpr
+        (clang::CXXConstructExpr* es) -> bool
+    {
+        for (auto const e : es->arguments())
+        {
+            expressions_.emplace_back(this->read_expression(e));
+        }
         return false;
     }
 

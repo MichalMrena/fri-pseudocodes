@@ -14,13 +14,16 @@ namespace fri
     public:
         ExpressionVisitor (StatementVisitor&, clang::ASTContext&);
 
-        auto read_expression (clang::Stmt*) -> std::unique_ptr<Expression>;
+        auto read_expression  (clang::Stmt*) -> std::unique_ptr<Expression>;
+        auto read_expressions (clang::Stmt*) -> std::vector<std::unique_ptr<Expression>>;
 
         auto VisitIntegerLiteral              (clang::IntegerLiteral*)              -> bool;
         auto VisitFloatingLiteral             (clang::FloatingLiteral*)             -> bool;
         auto VisitCXXBoolLiteralExpr          (clang::CXXBoolLiteralExpr*)          -> bool;
         auto VisitCXXNullPtrLiteralExpr       (clang::CXXNullPtrLiteralExpr*)       -> bool;
         auto VisitParenExpr                   (clang::ParenExpr*)                   -> bool;
+        auto VisitParenListExpr               (clang::ParenListExpr*)               -> bool;
+        auto VisitCXXConstructExpr            (clang::CXXConstructExpr*)            -> bool;
         auto VisitBinaryOperator              (clang::BinaryOperator*)              -> bool;
         auto VisitDeclRefExpr                 (clang::DeclRefExpr*)                 -> bool;
         auto VisitCXXDependentScopeMemberExpr (clang::CXXDependentScopeMemberExpr*) -> bool;
@@ -36,9 +39,10 @@ namespace fri
         auto VisitLambdaExpr                  (clang::LambdaExpr*)                  -> bool;
 
     private:
-        std::unique_ptr<Expression> expression_;
-        StatementVisitor*           statementer_;
-        clang::ASTContext*          context_;
+        std::unique_ptr<Expression>              expression_;
+        std::vector<std::unique_ptr<Expression>> expressions_;
+        StatementVisitor*                        statementer_;
+        clang::ASTContext*                       context_;
     };
 }
 

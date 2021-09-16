@@ -315,11 +315,29 @@ namespace fri
 
 // Other:
 
+    struct BaseInitPair
+    {
+        std::string                              name_;
+        std::vector<std::unique_ptr<Expression>> init_;
+        BaseInitPair(std::string, std::vector<std::unique_ptr<Expression>>);
+    };
+
+    struct MemberInitPair
+    {
+        std::string                              name_;
+        std::vector<std::unique_ptr<Expression>> init_;
+        MemberInitPair(std::string, std::vector<std::unique_ptr<Expression>>);
+    };
+
     struct Constructor : public Visitable<Constructor>
     {
         std::vector<ParamDefinition>     params_;
+        std::vector<BaseInitPair>        baseInitList_;
+        std::vector<MemberInitPair>      initList_;
         std::optional<CompoundStatement> body_ {};
         Constructor( std::vector<ParamDefinition>
+                   , std::vector<BaseInitPair>
+                   , std::vector<MemberInitPair>
                    , std::optional<CompoundStatement> );
     };
 

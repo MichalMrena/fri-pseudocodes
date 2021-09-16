@@ -424,7 +424,7 @@ namespace fri
         (MemberVarRef const& m) -> void
     {
         this->visit_member_base(*m.base_);
-        out_->out(m.name_, colors_.variable_, FontStyle::Bold);
+        out_->out(m.name_, colors_.variable_, FontStyle::Italic);
     }
 
     auto PseudocodeGenerator::visit
@@ -446,14 +446,6 @@ namespace fri
         auto const color = this->op_color(opstr);
         if (is_postfixx(r.op_))
         {
-            // if (0 == r.arg_.index())
-            // {
-            //     std::get<0>(r.arg_)->accept(*this);
-            // }
-            // else if (1 == r.arg_.index())
-            // {
-            //     std::get<1>(r.arg_)->accept(*this);
-            // }
             output_arg(r.arg_);
             out_->out(opstr, color);
         }
@@ -473,7 +465,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (New const& n) -> void
     {
-        out_->out("vytvor ", colors_.keyword_);
+        out_->out("vytvor ", colors_.keyword_, FontStyle::Bold);
         n.type_->accept(*this);
         out_->out("(", colors_.plain_);
         this->visit_range(", ", std::begin(n.args_), std::end(n.args_));
@@ -492,20 +484,20 @@ namespace fri
     auto PseudocodeGenerator::visit
         (This const&) -> void
     {
-        out_->out("self", colors_.keyword_);
+        out_->out("self", colors_.keyword_, FontStyle::Bold);
     }
 
     auto PseudocodeGenerator::visit
         (IfExpression const& c) -> void
     {
         out_->out("(", colors_.plain_);
-        out_->out("Ak ", colors_.keyword_);
+        out_->out("Ak ", colors_.keyword_, FontStyle::Bold);
         c.cond_->accept(*this);
-        out_->out(" potom ", colors_.keyword_);
+        out_->out(" potom ", colors_.keyword_, FontStyle::Bold);
         c.then_->accept(*this);
         out_->end_line();
         out_->begin_line();
-        out_->out("inak ", colors_.keyword_);
+        out_->out("inak ", colors_.keyword_, FontStyle::Bold);
         c.else_->accept(*this);
         out_->out(")", colors_.plain_);
     }
@@ -533,8 +525,8 @@ namespace fri
         }
         else
         {
-            p.pointee_->accept(*this);
             out_->out("↑", colors_.plain_);
+            p.pointee_->accept(*this);
         }
     }
 
@@ -543,7 +535,7 @@ namespace fri
     {
         // Class header.
         out_->begin_line();
-        out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", colors_.keyword_);
+        out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", colors_.keyword_, FontStyle::Bold);
         out_->out(c.name_.empty() ? c.qualName_ : c.name_, colors_.customType_);
 
         // Split base classes to interfaces and classes.
@@ -558,7 +550,7 @@ namespace fri
         auto itImpl = std::begin(bases);
         if (itImpl != basesMid)
         {
-            out_->out(" implementuje ", colors_.keyword_);
+            out_->out(" implementuje ", colors_.keyword_, FontStyle::Bold);
             while (itImpl != basesMid)
             {
                 auto const& name = (*itImpl)->name_.empty() ? (*itImpl)->qualName_ : (*itImpl)->name_;
@@ -575,7 +567,7 @@ namespace fri
         auto itExt = basesMid;
         if (itExt != basesEnd)
         {
-            out_->out(" rozširuje ", colors_.keyword_);
+            out_->out(" rozširuje ", colors_.keyword_, FontStyle::Bold);
             while (itExt != basesEnd)
             {
                 auto const& name = (*itExt)->name_.empty() ? (*itExt)->qualName_ : (*itExt)->name_;
@@ -658,7 +650,7 @@ namespace fri
         (Method const& m) -> void
     {
         out_->begin_line();
-        out_->out("operácia ", colors_.keyword_);
+        out_->out("operácia ", colors_.keyword_, FontStyle::Bold);
         out_->out(m.name_, colors_.function_);
         out_->out("(", colors_.plain_);
 
@@ -677,7 +669,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (ForLoop const& f) -> void
     {
-        out_->out("Pre ", colors_.keyword_);
+        out_->out("Pre ", colors_.keyword_, FontStyle::Bold);
         if (f.var_)
         {
             f.var_->accept(*this);
@@ -686,12 +678,12 @@ namespace fri
             {
                 out_->out("null");
             }
-        out_->out(" pokiaľ ", colors_.keyword_);
+        out_->out(" pokiaľ ", colors_.keyword_, FontStyle::Bold);
         if (f.cond_)
         {
             f.cond_->accept(*this);
         }
-        out_->out(" pričom ", colors_.keyword_);
+        out_->out(" pričom ", colors_.keyword_, FontStyle::Bold);
         if (f.inc_)
         {
             f.inc_->accept(*this);
@@ -702,18 +694,18 @@ namespace fri
     auto PseudocodeGenerator::visit
         (WhileLoop const& w) -> void
     {
-        out_->out("Pokiaľ ", colors_.keyword_);
+        out_->out("Pokiaľ ", colors_.keyword_, FontStyle::Bold);
         w.loop_.condition_->accept(*this);
-        out_->out(" opakuj", colors_.keyword_);
+        out_->out(" opakuj", colors_.keyword_, FontStyle::Bold);
         w.loop_.body_.accept(*this);
     }
 
     auto PseudocodeGenerator::visit
         (DoWhileLoop const& d) -> void
     {
-        out_->out("Opakuj", colors_.keyword_);
+        out_->out("Opakuj", colors_.keyword_, FontStyle::Bold);
         d.loop_.body_.accept(*this);
-        out_->out(" pokiaľ ", colors_.keyword_);
+        out_->out(" pokiaľ ", colors_.keyword_, FontStyle::Bold);
         d.loop_.condition_->accept(*this);
     }
 
@@ -734,7 +726,7 @@ namespace fri
         (FieldDefinition const& f) -> void
     {
         out_->begin_line();
-        out_->out("vlastnosť ", colors_.keyword_);
+        out_->out("vlastnosť ", colors_.keyword_, FontStyle::Bold);
         f.var_.accept(*this);
         out_->end_line();
     }
@@ -748,7 +740,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (VarDefinition const& v) -> void
     {
-        out_->out("premenná ", colors_.keyword_);
+        out_->out("premenná ", colors_.keyword_, FontStyle::Bold);
         v.var_.accept(*this);
     }
 
@@ -780,20 +772,20 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Return const& r) -> void
     {
-        out_->out("Vráť ", colors_.keyword_);
+        out_->out("Vráť ", colors_.keyword_, FontStyle::Bold);
         r.expression_->accept(*this);
     }
 
     auto PseudocodeGenerator::visit
         (If const& i) -> void
     {
-        out_->out("Ak ", colors_.keyword_);
+        out_->out("Ak ", colors_.keyword_, FontStyle::Bold);
         i.condition_->accept(*this);
-        out_->out(" potom", colors_.keyword_);
+        out_->out(" potom", colors_.keyword_, FontStyle::Bold);
         i.then_.accept(*this);
         if (i.else_)
         {
-            out_->out(" inak", colors_.keyword_);
+            out_->out(" inak", colors_.keyword_, FontStyle::Bold);
             i.else_.value().accept(*this);
         }
     }
@@ -801,7 +793,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Delete const& d) -> void
     {
-        out_->out("zruš ", colors_.keyword_);
+        out_->out("zruš ", colors_.keyword_, FontStyle::Bold);
         d.ex_->accept(*this);
     }
 
@@ -817,7 +809,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (DestructorCall const& d) -> void
     {
-        out_->out("deštrutktor ", colors_.keyword_);
+        out_->out("deštrutktor ", colors_.keyword_, FontStyle::Bold);
         d.ex_->accept(*this);
     }
 
@@ -843,11 +835,11 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Lambda const& l) -> void
     {
-        // out_->out("λ", colors_.keyword_);
+        // out_->out("λ", colors_.keyword_, FontStyle::Bold);
 
         for (auto const& p : l.params_)
         {
-            out_->out("λ", colors_.keyword_);
+            out_->out("λ", colors_.keyword_, FontStyle::Bold);
             out_->out(p.var_.name_, colors_.variable_);
             out_->out(" ");
         }
@@ -957,7 +949,8 @@ namespace fri
         switch (op)
         {
             case UnOpcode::IncPost:
-            case UnOpcode::DecPost: return true;
+            case UnOpcode::DecPost:
+            case UnOpcode::Deref:   return true;
             default:                return false;
         }
     }
@@ -972,11 +965,51 @@ namespace fri
         }
     }
 
+    auto PseudocodeGenerator::visit
+        (Constructor const& c, CompoundStatement const& b) -> void
+    {
+        out_->out(" {", colors_.plain_);
+        out_->end_line();
+        out_->inc_indent();
+
+        for (auto const& base : c.baseInitList_)
+        {
+            out_->begin_line();
+            out_->out(base.name_, colors_.customType_);
+            out_->out("(");
+            this->visit_range(", ", std::begin(base.init_), std::end(base.init_));
+            out_->out(")");
+            out_->end_line();
+        }
+
+        for (auto const& i : c.initList_)
+        {
+            out_->begin_line();
+            out_->out(i.name_, colors_.variable_, FontStyle::Italic); // TODO style member var
+            out_->out(" ");
+            out_->out(bin_op_to_string(BinOpcode::Assign), colors_.plain_);
+            out_->out(" ");
+            this->visit_range(", ", std::begin(i.init_), std::end(i.init_));
+            out_->end_line();
+        }
+
+        for (auto const& s : b.statements_)
+        {
+            out_->begin_line();
+            s->accept(*this);
+            out_->end_line();
+        }
+
+        out_->dec_indent();
+        out_->begin_line();
+        out_->out("}", colors_.plain_);
+    }
+
     auto PseudocodeGenerator::visit_decl
         (Method const& m) -> void
     {
         out_->begin_line();
-        out_->out("operácia ", colors_.keyword_);
+        out_->out("operácia ", colors_.keyword_, FontStyle::Bold);
         out_->out(m.name_, colors_.function_);
         out_->out("(", colors_.plain_);
 
@@ -990,7 +1023,7 @@ namespace fri
         (Constructor const& c) -> void
     {
         out_->begin_line();
-        out_->out("konštruktor ", colors_.keyword_);
+        out_->out("konštruktor ", colors_.keyword_, FontStyle::Bold);
         out_->out("(", colors_.plain_);
         this->visit_range(", ", std::begin(c.params_), std::end(c.params_));
         out_->out(") ", colors_.plain_);
@@ -1000,14 +1033,14 @@ namespace fri
     auto PseudocodeGenerator::visit_decl
         (Destructor const&) -> void
     {
-        out_->out("deštruktor ", colors_.keyword_);
+        out_->out("deštruktor ", colors_.keyword_, FontStyle::Bold);
     }
 
     auto PseudocodeGenerator::visit_def
         (Class const& c, Method const& m) -> void
     {
         out_->begin_line();
-        out_->out("operácia ", colors_.keyword_);
+        out_->out("operácia ", colors_.keyword_, FontStyle::Bold);
         this->visit_class_name(c);
         out_->out(".");
         out_->out(m.name_, colors_.function_);
@@ -1029,29 +1062,37 @@ namespace fri
         (Class const& c, Constructor const& con) -> void
     {
         out_->begin_line();
-        out_->out("konštruktor ", colors_.keyword_);
+        out_->out("konštruktor ", colors_.keyword_, FontStyle::Bold);
         this->visit_class_name(c);
         out_->out("(", colors_.plain_);
         this->visit_range(", ", std::begin(con.params_), std::end(con.params_));
         out_->out(")", colors_.plain_);
         if (con.body_)
         {
-            con.body_->accept(*this);
+            this->visit(con, *con.body_);
         }
         out_->end_line();
+        if (not c.methods_.empty() or c.destructor_.has_value())
+        {
+            out_->blank_line();
+        }
     }
 
     auto PseudocodeGenerator::visit_def
         (Class const& c, Destructor const& d) -> void
     {
         out_->begin_line();
-        out_->out("deštruktor ", colors_.keyword_);
+        out_->out("deštruktor ", colors_.keyword_, FontStyle::Bold);
         this->visit_class_name(c);
         if (d.body_)
         {
             d.body_->accept(*this);
         }
         out_->end_line();
+        if (not c.methods_.empty())
+        {
+            out_->blank_line();
+        }
     }
 
     auto PseudocodeGenerator::visit_class_name
