@@ -32,18 +32,12 @@ namespace fri
     };
 
     /**
-     *  @brief Colors of different parts of code.
+     *  @brief Text style.
      */
-    struct CodeColorInfo
+    struct TextStyle
     {
-        Color function_ {};
-        Color variable_ {};
-        Color keyword_ {};
-        Color plain_ {};
-        Color customType_ {};
-        Color primType_ {};
-        Color string_ {};
-        Color valLiteral_ {};
+        Color color_ {};
+        FontStyle style_ {FontStyle::Normal};
     };
 
     /**
@@ -51,23 +45,16 @@ namespace fri
      */
     struct CodeStyleInfo
     {
-        FontStyle function_ {FontStyle::Normal};
-        FontStyle variable_ {FontStyle::Normal};
-        FontStyle keyword_ {FontStyle::Normal};
-        FontStyle plain_ {FontStyle::Normal};
-        FontStyle customType_ {FontStyle::Normal};
-        FontStyle primType_ {FontStyle::Normal};
-        FontStyle string_ {FontStyle::Normal};
-        FontStyle valLiteral_ {FontStyle::Normal};
-    };
-
-    /**
-     *  @brief Text style.
-     */
-    struct CodeStyle
-    {
-        Color color_ {};
-        FontStyle style_ {FontStyle::Normal};
+        TextStyle function_       {Color {}, FontStyle::Normal};
+        TextStyle variable_       {Color {}, FontStyle::Normal};
+        TextStyle memberVariable_ {Color {}, FontStyle::Normal};
+        TextStyle keyword_        {Color {}, FontStyle::Normal};
+        TextStyle plain_          {Color {}, FontStyle::Normal};
+        TextStyle customType_     {Color {}, FontStyle::Normal};
+        TextStyle primType_       {Color {}, FontStyle::Normal};
+        TextStyle stringLiteral_  {Color {}, FontStyle::Normal};
+        TextStyle valLiteral_     {Color {}, FontStyle::Normal};
+        TextStyle numLiteral_     {Color {}, FontStyle::Normal};
     };
 
     /**
@@ -75,9 +62,10 @@ namespace fri
      */
     struct OutputSettings
     {
-        unsigned int fontSize = 9;
-        unsigned int indentSpaces = 2;
-        fri::CodeColorInfo colors {};
+        unsigned int  fontSize = 9;
+        unsigned int  indentSpaces = 2;
+        std::string   font {"Consolas"};
+        CodeStyleInfo style {};
     };
 
     /**
@@ -119,14 +107,9 @@ namespace fri
         virtual auto out (std::string_view) -> ICodePrinter& = 0;
 
         /**
-         *  @brief Prints string to the output using given or similar color if possible.
-         */
-        virtual auto out (std::string_view, Color const&) -> ICodePrinter& = 0;
-
-        /**
          *  @brief Prints string to the output using given or similar color if possible and given style if possible.
          */
-        virtual auto out (std::string_view, Color const&, FontStyle) -> ICodePrinter& = 0;
+        virtual auto out (std::string_view, TextStyle const&) -> ICodePrinter& = 0;
     };
 
     /**
@@ -144,9 +127,8 @@ namespace fri
         auto end_line   () -> void override;
         auto blank_line () -> void override;
 
-        auto out (std::string_view)               -> ConsoleCodePrinter& override;
-        auto out (std::string_view, Color const&) -> ConsoleCodePrinter& override;
-        auto out (std::string_view, Color const&, FontStyle) -> ConsoleCodePrinter& override;
+        auto out (std::string_view) -> ConsoleCodePrinter& override;
+        auto out (std::string_view, TextStyle const&) -> ConsoleCodePrinter& override;
 
     private:
         auto set_color   (Color const&) -> void;
@@ -173,9 +155,8 @@ namespace fri
         auto end_line    () -> void override;
         auto blank_line  () -> void override;
 
-        auto out (std::string_view)               -> RtfCodePrinter& override;
-        auto out (std::string_view, Color const&) -> RtfCodePrinter& override;
-        auto out (std::string_view, Color const&, FontStyle) -> RtfCodePrinter& override;
+        auto out (std::string_view) -> RtfCodePrinter& override;
+        auto out (std::string_view, TextStyle const&) -> RtfCodePrinter& override;
 
     private:
         auto begin_color (Color const&) -> void;
@@ -199,7 +180,7 @@ namespace fri
     class PseudocodeGenerator : public CodeVisitor
     {
     public:
-        PseudocodeGenerator (ICodePrinter&, CodeColorInfo);
+        PseudocodeGenerator (ICodePrinter&, CodeStyleInfo);
 
         auto visit (IntLiteral const&)           -> void override;
         auto visit (FloatLiteral const&)         -> void override;
@@ -267,7 +248,7 @@ namespace fri
 
     private:
         ICodePrinter* out_;
-        CodeColorInfo colors_;
+        CodeStyleInfo style_;
     };
 
     /**

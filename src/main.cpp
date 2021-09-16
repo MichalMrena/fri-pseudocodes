@@ -19,6 +19,14 @@ namespace
         Console, File
     };
 
+    auto string_to_style(std::string_view s)
+    {
+        return s == "normal" ? fri::FontStyle::Normal :
+               s == "bold"   ? fri::FontStyle::Bold   :
+               s == "italic" ? fri::FontStyle::Italic :
+                               fri::FontStyle::Normal;
+    }
+
     auto try_load_setting(OutputMode const outputMode)
     {
         auto ifst = std::ifstream("/home/michal/Projects/fri-pseudocodes/input/settings.txt");
@@ -34,7 +42,7 @@ namespace
         };
 
         auto settings = fri::OutputSettings();
-        auto colorMap = std::unordered_map<std::string, fri::Color>();
+        auto styleMap = std::unordered_map<std::string, fri::TextStyle>();
         auto line = std::string();
         while (std::getline(ifst, line))
         {
@@ -70,72 +78,99 @@ namespace
                 }
                 settings.indentSpaces = val;
             }
-            else if (settingName == "colors")
+            else if (settingName == "font")
+            {
+                if (words.size() < 2)
+                {
+                    print_ignore(settingName);
+                    continue;
+                }
+
+                auto const fEnd = std::end(words);
+                auto fIt = std::begin(words) + 2;
+                auto fontName = std::string(std::move(words[1]));
+                while (fIt != fEnd)
+                {
+                    fontName += " ";
+                    fontName += std::move(*fIt);
+                    ++fIt;
+                }
+                settings.font = std::move(fontName);
+            }
+            else if (settingName == "style")
             {
                 if (not std::getline(ifst, line))
                 {
-                    print_ignore("colors");
+                    print_ignore("style");
                     break;
                 }
 
-                auto colorWords = fri::to_words(std::move(line));
-                while (colorWords[0] != "end")
+                auto styleWords = fri::to_words(std::move(line));
+                while (styleWords[0] != "end")
                 {
-                    auto& colorTarget = colorWords[0];
-                    if (colorWords.size() < 4)
+                    auto& styleTarget = styleWords[0];
+                    if (styleWords.size() < 5)
                     {
-                        print_ignore(colorTarget);
+                        print_ignore(styleTarget);
                         continue;
                     }
-                    auto const r = fri::parse<std::uint8_t>(colorWords[1]);
-                    auto const g = fri::parse<std::uint8_t>(colorWords[2]);
-                    auto const b = fri::parse<std::uint8_t>(colorWords[3]);
+                    auto const s = string_to_style(styleWords[1]);
+                    auto const r = fri::parse<std::uint8_t>(styleWords[2]);
+                    auto const g = fri::parse<std::uint8_t>(styleWords[3]);
+                    auto const b = fri::parse<std::uint8_t>(styleWords[4]);
                     if (r and g and b)
                     {
-                        colorMap.emplace(colorTarget, fri::Color {r, g, b});
+                        styleMap.emplace(styleTarget, fri::TextStyle {fri::Color {r, g, b}, s});
                     }
                     else
                     {
-                        print_ignore(colorTarget);
+                        print_ignore(styleTarget);
                     }
                     if (not std::getline(ifst, line))
                     {
                         break;
                     }
-                    colorWords = fri::to_words(std::move(line));
+                    styleWords = fri::to_words(std::move(line));
                 }
 
-                auto const color_or_default = [](auto const& cMap, auto const& name)
+                auto const style_or_default = [](auto const& cMap, auto const& name)
                 {
                     auto const it = cMap.find(name);
-                    return it == std::end(cMap) ? fri::Color {0, 0, 0} : it->second;
+                    return it == std::end(cMap)
+                        ? fri::TextStyle {fri::Color {0, 0, 0}, fri::FontStyle::Normal}
+                        : it->second;
                 };
 
                 // Temporary exception for console.
                 if (outputMode == OutputMode::Console)
                 {
-                    settings.colors =
-                        fri::CodeColorInfo
-                            { .function_   = fri::Color {255, 255, 0  }
-                            , .variable_   = fri::Color {0,   255, 255}
-                            , .keyword_    = fri::Color {0,   0,   255}
-                            , .plain_      = fri::Color {255, 255, 255}
-                            , .customType_ = fri::Color {0,   255, 0  }
-                            , .primType_   = fri::Color {0,   0,   255}
-                            , .string_     = fri::Color {255, 0,   0  }
-                            , .valLiteral_ = fri::Color {255, 0,   255} };
+                    settings.style =
+                        fri::CodeStyleInfo
+                        { .function_       = fri::TextStyle {fri::Color {255, 255, 0  }, fri::FontStyle::Normal}
+                        , .variable_       = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
+                        , .memberVariable_ = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
+                        , .keyword_        = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
+                        , .plain_          = fri::TextStyle {fri::Color {255, 255, 255}, fri::FontStyle::Normal}
+                        , .customType_     = fri::TextStyle {fri::Color {0,   255, 0  }, fri::FontStyle::Normal}
+                        , .primType_       = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
+                        , .stringLiteral_  = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal}
+                        , .valLiteral_     = fri::TextStyle {fri::Color {255, 0,   255}, fri::FontStyle::Normal}
+                        , .numLiteral_     = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal} };
                 }
                 else
                 {
-                    settings.colors = fri::CodeColorInfo
-                        { .function_   = color_or_default(colorMap, "function")
-                        , .variable_   = color_or_default(colorMap, "variable")
-                        , .keyword_    = color_or_default(colorMap, "keyword")
-                        , .plain_      = color_or_default(colorMap, "plain")
-                        , .customType_ = color_or_default(colorMap, "customType")
-                        , .primType_   = color_or_default(colorMap, "primType")
-                        , .string_     = color_or_default(colorMap, "string")
-                        , .valLiteral_ = color_or_default(colorMap, "valLiteral") };
+                    settings.style =
+                        fri::CodeStyleInfo
+                        { .function_       = style_or_default(styleMap, "function")
+                        , .variable_       = style_or_default(styleMap, "variable")
+                        , .memberVariable_ = style_or_default(styleMap, "memberVariable")
+                        , .keyword_        = style_or_default(styleMap, "keyword")
+                        , .plain_          = style_or_default(styleMap, "plain")
+                        , .customType_     = style_or_default(styleMap, "customType")
+                        , .primType_       = style_or_default(styleMap, "primType")
+                        , .stringLiteral_  = style_or_default(styleMap, "stringLiteral")
+                        , .valLiteral_     = style_or_default(styleMap, "valLiteral")
+                        , .numLiteral_     = style_or_default(styleMap, "numLiteral") };
                 }
 
             }
@@ -222,7 +257,7 @@ int main(int argc, char** argv)
 
     // Analyze the code and generate pseudocode.
     auto printerVar         = printer(outputMode, ofstOpt, settings);
-    auto generator          = fri::PseudocodeGenerator(printer_ref(printerVar), settings.colors);
+    auto generator          = fri::PseudocodeGenerator(printer_ref(printerVar), settings.style);
     auto const abstractCode = fri::extract_code(code);
 
     std::cout << "---------------------------------------------" << '\n';
@@ -231,3 +266,19 @@ int main(int argc, char** argv)
         c->accept(generator);
     }
 }
+
+// font       Consolas
+// fontSize   9
+// indent     2
+// style
+//     function       normal 191 144 0
+//     variable       normal 0   112 192
+//     memberVariable italic 0   112 192
+//     keyword        bold   0   32  96
+//     plain          normal 0   0   0
+//     customType     normal 0   176 80
+//     primType       normal 0   32  96
+//     stringLiteral  normal 197 90  17
+//     valLiteral     normal 112 48  160
+//     numLiteral     normal 197 90  17
+// end style
