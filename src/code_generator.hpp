@@ -205,6 +205,7 @@ namespace fri
 
         auto visit (PrimType const&)             -> void override;
         auto visit (CustomType const&)           -> void override;
+        auto visit (TemplatedType const&)        -> void override;
         auto visit (Indirection const&)          -> void override;
 
         auto visit (Class const&)                -> void override;
@@ -247,6 +248,9 @@ namespace fri
         template<class Range>
         auto output_range (Range&&, std::string_view, TextStyle const&) -> void;
 
+        template<class Range>
+        auto visit_range (Range&&, std::string_view) -> void;
+
         template<class InputIt>
         auto visit_range (std::string_view, InputIt, InputIt) -> void;
 
@@ -282,6 +286,7 @@ namespace fri
 
         auto visit (PrimType const&)             -> void override {};
         auto visit (CustomType const&)           -> void override {};
+        auto visit (TemplatedType const&)        -> void override {};
         auto visit (Indirection const&)          -> void override {};
 
         auto visit (Class const&)                -> void override {};

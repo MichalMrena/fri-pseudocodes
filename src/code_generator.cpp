@@ -516,6 +516,15 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
+        (TemplatedType const& t) -> void
+    {
+        t.base_->accept(*this);
+        out_->out("<");
+        this->visit_range(t.args_, ", ");
+        out_->out(">");
+    }
+
+    auto PseudocodeGenerator::visit
         (Indirection const& p) -> void
     {
         auto isVoidChecker = IsVoidVisitor();
@@ -1143,6 +1152,13 @@ namespace fri
                 out_->out(glue);
             }
         }
+    }
+
+    template<class Range>
+    auto PseudocodeGenerator::visit_range
+        (Range&& r, std::string_view d) -> void
+    {
+        this->visit_range(d, std::begin(r), std::end(r));
     }
 
     template<class InputIt>

@@ -65,7 +65,8 @@ namespace fri
     struct TemplatedType : public VisitableFamily<Type, TemplatedType>
     {
         std::unique_ptr<Type> base_;
-        std::vector<std::unique_ptr<Type>> params_;
+        std::vector<std::unique_ptr<Type>> args_;
+        TemplatedType (std::unique_ptr<Type>, std::vector<std::unique_ptr<Type>>);
     };
 
     struct Indirection : public VisitableFamily<Type, Indirection>
@@ -426,6 +427,7 @@ namespace fri
 
         virtual auto visit (PrimType const&)             -> void = 0;
         virtual auto visit (CustomType const&)           -> void = 0;
+        virtual auto visit (TemplatedType const&)        -> void = 0;
         virtual auto visit (Indirection const&)          -> void = 0;
 
         virtual auto visit (Class const&)                -> void = 0;

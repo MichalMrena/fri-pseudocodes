@@ -16,6 +16,14 @@ namespace fri
     {
     }
 
+    TemplatedType::TemplatedType
+        ( std::unique_ptr<Type>              b
+        , std::vector<std::unique_ptr<Type>> as ) :
+        base_ (std::move(b)),
+        args_ (std::move(as))
+    {
+    }
+
     Indirection::Indirection
         (std::unique_ptr<Type> pointee) :
         pointee_ (std::move(pointee))
