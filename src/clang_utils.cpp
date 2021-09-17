@@ -19,14 +19,10 @@ namespace fri
         }
         else if (auto const typedefed = clang::dyn_cast<clang::TypedefType>(typePtr))
         {
-            if (clang::isa<clang::BuiltinType>(typedefed->desugar().getTypePtr()))
-            {
-                return std::make_unique<PrimType>(typedefed->getDecl()->getName().str());
-            }
-            else
-            {
-                return std::make_unique<CustomType>(typedefed->getDecl()->getName().str());
-            }
+            using uptr = std::unique_ptr<Type>;
+            return clang::isa<clang::BuiltinType>(typedefed->desugar().getTypePtr())
+                ? uptr(std::make_unique<PrimType>(typedefed->getDecl()->getName().str()))
+                : std::make_unique<CustomType>(typedefed->getDecl()->getName().str());
         }
         else if (auto const record = clang::dyn_cast<clang::RecordType>(typePtr))
         {
@@ -50,10 +46,9 @@ namespace fri
             return std::make_unique<TemplatedType>( std::make_unique<CustomType>(name)
                                                   , std::move(args) );
         }
-        else if (typePtr->isDependentType())
+        else if (auto elab = clang::dyn_cast<clang::ElaboratedType>(typePtr))
         {
-            typePtr->dump();
-            return std::make_unique<CustomType>(qt.getAsString());
+            return extract_type(pp, elab->desugar());
         }
         else
         {

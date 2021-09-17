@@ -1,0 +1,16 @@
+font Consolas
+fontSize 9
+indent 2
+style
+    function       normal 121  94  39
+    variable       normal   0  16 128
+    memberVariable italic   0  16 128
+    keyword        bold     0   0 255
+    controlKeyword normal 175   0 219
+    plain          normal   0   0   0
+    customType     normal  38 127 153
+    primType       normal   0   0 255
+    stringLiteral  normal 163  21  21
+    valLiteral     normal   0   0 255
+    numLiteral     normal   9 134  88
+end style

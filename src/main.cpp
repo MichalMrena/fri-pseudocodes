@@ -35,6 +35,7 @@ namespace
             , .variable_       = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
             , .memberVariable_ = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
             , .keyword_        = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
+            , .controlKeyword_ = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
             , .plain_          = fri::TextStyle {fri::Color {255, 255, 255}, fri::FontStyle::Normal}
             , .customType_     = fri::TextStyle {fri::Color {0,   255, 0  }, fri::FontStyle::Normal}
             , .primType_       = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
@@ -173,6 +174,7 @@ namespace
                         , .variable_       = style_or_default(styleMap, "variable")
                         , .memberVariable_ = style_or_default(styleMap, "memberVariable")
                         , .keyword_        = style_or_default(styleMap, "keyword")
+                        , .controlKeyword_ = style_or_default(styleMap, "controlKeyword")
                         , .plain_          = style_or_default(styleMap, "plain")
                         , .customType_     = style_or_default(styleMap, "customType")
                         , .primType_       = style_or_default(styleMap, "primType")

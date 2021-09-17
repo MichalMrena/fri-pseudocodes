@@ -149,6 +149,7 @@ namespace fri
         op(st.variable_.color_);
         op(st.memberVariable_.color_);
         op(st.keyword_.color_);
+        op(st.controlKeyword_.color_);
         op(st.plain_.color_);
         op(st.customType_.color_);
         op(st.primType_.color_);
@@ -431,7 +432,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (UnaryOperator const& r) -> void
     {
-        auto const output_arg = [this](auto const& var)
+        auto const accept_this = [this](auto const& var)
         {
             if (0 == var.index())
             {
@@ -444,22 +445,28 @@ namespace fri
         };
 
         auto const opstr = un_op_to_string(r.op_);
-        // auto const color = this->op_color(opstr); // TODO
         if (is_postfixx(r.op_))
         {
-            output_arg(r.arg_);
+            accept_this(r.arg_);
             out_->out(opstr);
         }
         else if (is_bothtfix(r.op_))
         {
             out_->out(opstr);
-            output_arg(r.arg_);
+            accept_this(r.arg_);
             out_->out(opstr);
         }
-        else
+        else if (is_call(r.op_))
+        {
+            out_->out(un_op_to_string(r.op_), style_.function_);
+            out_->out("(");
+            accept_this(r.arg_);
+            out_->out(")");
+        }
+        else // is_prefix
         {
             out_->out(opstr);
-            output_arg(r.arg_);
+            accept_this(r.arg_);
         }
     }
 
@@ -492,13 +499,13 @@ namespace fri
         (IfExpression const& c) -> void
     {
         out_->out("(");
-        out_->out("Ak ", style_.keyword_);
+        out_->out("Ak ", style_.controlKeyword_);
         c.cond_->accept(*this);
-        out_->out(" potom ", style_.keyword_);
+        out_->out(" potom ", style_.controlKeyword_);
         c.then_->accept(*this);
         out_->end_line();
         out_->begin_line();
-        out_->out("inak ", style_.keyword_);
+        out_->out("inak ", style_.controlKeyword_);
         c.else_->accept(*this);
         out_->out(")");
     }
@@ -506,7 +513,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (PrimType const& p) -> void
     {
-        out_->out(p.name_, style_.primType_);
+        out_->out(simplify_type_name(p.name_), style_.primType_);
     }
 
     auto PseudocodeGenerator::visit
@@ -686,7 +693,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (ForLoop const& f) -> void
     {
-        out_->out("Pre ", style_.keyword_);
+        out_->out("Pre ", style_.controlKeyword_);
         if (f.var_)
         {
             f.var_->accept(*this);
@@ -695,12 +702,12 @@ namespace fri
             {
                 out_->out("null");
             }
-        out_->out(" pokiaľ ", style_.keyword_);
+        out_->out(" pokiaľ ", style_.controlKeyword_);
         if (f.cond_)
         {
             f.cond_->accept(*this);
         }
-        out_->out(" pričom ", style_.keyword_);
+        out_->out(" pričom ", style_.controlKeyword_);
         if (f.inc_)
         {
             f.inc_->accept(*this);
@@ -711,19 +718,23 @@ namespace fri
     auto PseudocodeGenerator::visit
         (WhileLoop const& w) -> void
     {
-        out_->out("Pokiaľ ", style_.keyword_);
+        out_->out("Pokiaľ ", style_.controlKeyword_);
+        out_->out("(");
         w.loop_.condition_->accept(*this);
-        out_->out(" opakuj", style_.keyword_);
+        out_->out(")");
+        out_->out(" opakuj", style_.controlKeyword_);
         w.loop_.body_.accept(*this);
     }
 
     auto PseudocodeGenerator::visit
         (DoWhileLoop const& d) -> void
     {
-        out_->out("Opakuj", style_.keyword_);
+        out_->out("Opakuj", style_.controlKeyword_);
         d.loop_.body_.accept(*this);
-        out_->out(" pokiaľ ", style_.keyword_);
+        out_->out(" pokiaľ ", style_.controlKeyword_);
+        out_->out("(");
         d.loop_.condition_->accept(*this);
+        out_->out(")");
     }
 
     auto PseudocodeGenerator::visit
@@ -734,7 +745,12 @@ namespace fri
         f.type_->accept(*this);
         if (f.initializer_)
         {
-            out_->out(" <- ");
+            out_->end_line();
+            out_->begin_line();
+            out_->out(f.name_, style_.variable_);
+            out_->out(" ");
+            out_->out(bin_op_to_string(BinOpcode::Assign));
+            out_->out(" ");
             f.initializer_->accept(*this);
         }
     }
@@ -757,7 +773,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (VarDefinition const& v) -> void
     {
-        out_->out("premenná ", style_.keyword_);
+        out_->out("deklaruj premennú ", style_.keyword_);
         v.var_.accept(*this);
     }
 
@@ -789,20 +805,22 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Return const& r) -> void
     {
-        out_->out("Vráť ", style_.keyword_);
+        out_->out("Vráť ", style_.controlKeyword_);
         r.expression_->accept(*this);
     }
 
     auto PseudocodeGenerator::visit
         (If const& i) -> void
     {
-        out_->out("Ak ", style_.keyword_);
+        out_->out("Ak ", style_.controlKeyword_);
+        out_->out("(");
         i.condition_->accept(*this);
-        out_->out(" potom", style_.keyword_);
+        out_->out(")");
+        out_->out(" potom", style_.controlKeyword_);
         i.then_.accept(*this);
         if (i.else_)
         {
-            out_->out(" inak", style_.keyword_);
+            out_->out(" inak", style_.controlKeyword_);
             i.else_.value().accept(*this);
         }
     }
@@ -939,7 +957,7 @@ namespace fri
             case UnOpcode::DecPost: return "--";
             case UnOpcode::LogNot:  return "nie ";
             case UnOpcode::Deref:   return "↓";
-            case UnOpcode::Address: return "adresa ";
+            case UnOpcode::Address: return "dajAdresu";
             case UnOpcode::ArNot:   return "-";
             case UnOpcode::Sizeof:  return "|";
             default:                return "<unknown operator>";
@@ -957,6 +975,16 @@ namespace fri
             case BinOpcode::DivAssign:
             case BinOpcode::ModAssign: return true;
             default:                   return false;
+        }
+    }
+
+    auto PseudocodeGenerator::is_call
+        (UnOpcode const op) -> bool
+    {
+        switch (op)
+        {
+            case UnOpcode::Address: return true;
+            default:                return false;
         }
     }
 
@@ -980,6 +1008,14 @@ namespace fri
             case UnOpcode::Sizeof: return true;
             default:               return false;
         }
+    }
+
+    auto PseudocodeGenerator::simplify_type_name
+        (std::string_view name) -> std::string_view
+    {
+        return name == "size_t" ? "Integer" :
+               name == "int"    ? "Integer" :
+                                  name;
     }
 
     auto PseudocodeGenerator::visit
@@ -1057,6 +1093,11 @@ namespace fri
     auto PseudocodeGenerator::visit_def
         (Class const& c, Method const& m) -> void
     {
+        if (not m.body_)
+        {
+            return;
+        }
+
         out_->begin_line();
         out_->out("operácia ", style_.keyword_);
         this->visit_class_name(c);
@@ -1079,6 +1120,11 @@ namespace fri
     auto PseudocodeGenerator::visit_def
         (Class const& c, Constructor const& con) -> void
     {
+        if (con.baseInitList_.empty() and con.initList_.empty() and not con.body_)
+        {
+            return;
+        }
+
         out_->begin_line();
         out_->out("konštruktor ", style_.keyword_);
         this->visit_class_name(c);
@@ -1099,6 +1145,11 @@ namespace fri
     auto PseudocodeGenerator::visit_def
         (Class const& c, Destructor const& d) -> void
     {
+        if (not d.body_)
+        {
+            return;
+        }
+
         out_->begin_line();
         out_->out("deštruktor ", style_.keyword_);
         this->visit_class_name(c);

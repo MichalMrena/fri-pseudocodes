@@ -50,6 +50,7 @@ namespace fri
         TextStyle variable_       {Color {}, FontStyle::Normal};
         TextStyle memberVariable_ {Color {}, FontStyle::Normal};
         TextStyle keyword_        {Color {}, FontStyle::Normal};
+        TextStyle controlKeyword_ {Color {}, FontStyle::Normal};
         TextStyle plain_          {Color {}, FontStyle::Normal};
         TextStyle customType_     {Color {}, FontStyle::Normal};
         TextStyle primType_       {Color {}, FontStyle::Normal};
@@ -225,11 +226,13 @@ namespace fri
         auto visit (Throw const&)                -> void override;
 
     private:
-        static auto bin_op_to_string (BinOpcode) -> std::string;
-        static auto un_op_to_string  (UnOpcode)  -> std::string;
-        static auto is_compound_op   (BinOpcode) -> bool;
-        static auto is_postfixx      (UnOpcode)  -> bool;
-        static auto is_bothtfix      (UnOpcode)  -> bool;
+        static auto bin_op_to_string   (BinOpcode) -> std::string;
+        static auto un_op_to_string    (UnOpcode)  -> std::string;
+        static auto is_compound_op     (BinOpcode) -> bool;
+        static auto is_call            (UnOpcode)  -> bool;
+        static auto is_postfixx        (UnOpcode)  -> bool;
+        static auto is_bothtfix        (UnOpcode)  -> bool;
+        static auto simplify_type_name (std::string_view) -> std::string_view;
 
         auto visit (Constructor const&, CompoundStatement const&) -> void;
 
