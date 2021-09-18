@@ -95,7 +95,8 @@
         "__tree": "cpp",
         "__tuple": "cpp",
         "semaphore": "cpp",
-        "numbers": "cpp"
+        "numbers": "cpp",
+        "*.inc": "cpp"
     },
     "python.linting.enabled": true
 }

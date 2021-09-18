@@ -57,42 +57,63 @@ namespace fri
         return not (l == r);
     }
 
+// CommonCodePrinter definitions:
+
+    CommonCodePrinter::CommonCodePrinter
+        (OutputSettings const& s) :
+        indentStep_    {s.indentSpaces},
+        indentCurrent_ {0}
+    {
+    }
+
+    CommonCodePrinter::CommonCodePrinter
+        (IndentState s) :
+        indentStep_    {s.step},
+        indentCurrent_ {s.current}
+    {
+    }
+
+    auto CommonCodePrinter::inc_indent
+        () -> void
+    {
+        ++indentCurrent_;
+    }
+
+    auto CommonCodePrinter::dec_indent
+        () -> void
+    {
+        if (indentCurrent_ > 0)
+        {
+            --indentCurrent_;
+        }
+    }
+
+    auto CommonCodePrinter::current_indent
+        () const -> IndentState
+    {
+        return IndentState { .step = indentStep_
+                           , .current = indentCurrent_ };
+    }
+
+    auto CommonCodePrinter::get_indent
+        () const -> std::string_view
+    {
+        auto const sc = std::min(Spaces.size(), indentCurrent_ * indentStep_);
+        return Spaces.substr(0, sc);
+    }
+
 // ConsoleCodePrinter definitions:
 
     ConsoleCodePrinter::ConsoleCodePrinter
         (OutputSettings const& settings) :
-        indentStep_    (settings.indentSpaces),
-        currentIndent_ (0),
-        spaces_        ("                               ")
+        base (settings)
     {
-    }
-
-    ConsoleCodePrinter::~ConsoleCodePrinter
-        ()
-    {
-        this->reset_color();
-    }
-
-    auto ConsoleCodePrinter::inc_indent
-        () -> void
-    {
-        ++currentIndent_;
-    }
-
-    auto ConsoleCodePrinter::dec_indent
-        () -> void
-    {
-         if (currentIndent_ > 0)
-         {
-             --currentIndent_;
-         }
     }
 
     auto ConsoleCodePrinter::begin_line
         () -> void
     {
-        auto const sc = std::min(spaces_.size(), currentIndent_ * indentStep_);
-        std::cout << spaces_.substr(0, sc);
+        std::cout << base::get_indent();
     }
 
     auto ConsoleCodePrinter::end_line
@@ -133,7 +154,7 @@ namespace fri
                      : Color {255, 0,   255} == c ? "\x1B[95m"
                      : Color {0,   255, 255} == c ? "\x1B[96m"
                      : Color {255, 255, 255} == c ? "\x1B[97m"
-                     :                              "\x1B[94m" );
+                     :                              "\x1B[97m" );
     }
 
     auto ConsoleCodePrinter::reset_color
@@ -162,10 +183,8 @@ namespace fri
 
     RtfCodePrinter::RtfCodePrinter
         (std::ofstream& ofst, OutputSettings const& settings) :
-        ofst_          (&ofst),
-        indentStep_    (settings.indentSpaces),
-        currentIndent_ (0),
-        spaces_        ("                               ")
+        base  (settings),
+        ofst_ (&ofst)
     {
         *ofst_ << R"({\rtf1\ansi\deff0\f0\fs)"   << (2 * settings.fontSize) << '\n'
                << R"({\fonttbl)"                 << '\n'
@@ -198,26 +217,10 @@ namespace fri
         *ofst_ << "}";
     }
 
-    auto RtfCodePrinter::inc_indent
-        () -> void
-    {
-        ++currentIndent_;
-    }
-
-    auto RtfCodePrinter::dec_indent
-        () -> void
-    {
-         if (currentIndent_ > 0)
-         {
-             --currentIndent_;
-         }
-    }
-
     auto RtfCodePrinter::begin_line
         () -> void
     {
-        auto const sc = std::min(spaces_.size(), currentIndent_ * indentStep_);
-        *ofst_ << spaces_.substr(0, sc);
+        *ofst_ << base::get_indent();
     }
 
     auto RtfCodePrinter::end_line
@@ -244,7 +247,7 @@ namespace fri
     {
         this->begin_color(st.color_);
         this->begin_style(st.style_);
-        *ofst_ << encode(s);
+        this->out(s);
         this->end_style(st.style_);
         this->end_color();
         return *this;
@@ -343,6 +346,52 @@ namespace fri
             ++it;
         }
         return cs;
+    }
+
+// DummyCodePrinter definitions:
+
+    DummyCodePrinter::DummyCodePrinter
+        (IndentState s) :
+        base (s)
+    {
+    }
+
+    auto DummyCodePrinter::begin_line
+        () -> void
+    {
+        currentColumn_ += base::get_indent().size();
+    }
+
+    auto DummyCodePrinter::end_line
+        () -> void
+    {
+        currentColumn_ = 0;
+    }
+
+    auto DummyCodePrinter::blank_line
+        () -> void
+    {
+        this->end_line();
+    }
+
+    auto DummyCodePrinter::out
+        (std::string_view const s) -> DummyCodePrinter&
+    {
+        currentColumn_ += s.size();
+        return *this;
+    }
+
+    auto DummyCodePrinter::out
+        (std::string_view const s, TextStyle const&) -> DummyCodePrinter&
+    {
+        this->out(s);
+        return *this;
+    }
+
+    auto DummyCodePrinter::get_column
+        () const -> std::size_t
+    {
+        return currentColumn_;
     }
 
 // PseudocodeGenerator definitions:
@@ -476,7 +525,7 @@ namespace fri
         out_->out("vytvor ", style_.keyword_);
         n.type_->accept(*this);
         out_->out("(");
-        this->visit_range(", ", std::begin(n.args_), std::end(n.args_));
+        this->visit_args(n.args_);
         out_->out(")");
     }
 
@@ -485,7 +534,7 @@ namespace fri
     {
         out_->out(c.name_, style_.function_);
         out_->out("(");
-        this->visit_range(", ", std::begin(c.args_), std::end(c.args_));
+        this->visit_args(c.args_);
         out_->out(")");
     }
 
@@ -527,7 +576,10 @@ namespace fri
     {
         t.base_->accept(*this);
         out_->out("<");
-        this->visit_range(t.args_, ", ");
+        this->visit_range(t.args_, [this]()
+        {
+            out_->out(", ");
+        });
         out_->out(">");
     }
 
@@ -553,49 +605,49 @@ namespace fri
         // TODO base classes as templates, add visit_class_name
         // Class header.
         out_->begin_line();
-        out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", style_.keyword_);
-        out_->out(c.name_.empty() ? c.qualName_ : c.name_, style_.customType_);
-        if (not c.templateParams_.empty())
-        {
-            out_->out("<");
-            this->output_range(c.templateParams_, ", ", style_.customType_);
-            out_->out(">");
-        }
+        // out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", style_.keyword_);
+        out_->out("Trieda ", style_.keyword_);
+        this->visit_class_name(c);
 
         // Split base classes to interfaces and classes.
-        auto bases          = c.bases_;
+        auto& bases          = c.bases_;
         auto const basesEnd = std::end(bases);
-        auto const basesMid = std::stable_partition(std::begin(bases), std::end(bases), [](auto const b)
-        {
-            return is_interface(*b);
-        });
+        auto const basesMid = std::end(bases);
+        // auto const basesEnd = std::end(bases);
+        // auto const basesMid = std::stable_partition(std::begin(bases), std::end(bases), [](auto const b)
+        // {
+        //     // return is_interface(*b);
+        //     return true; // TODO
+        // });
 
         // Print implemented interfaces.
-        auto itImpl = std::begin(bases);
-        if (itImpl != basesMid)
-        {
-            out_->out(" implementuje ", style_.keyword_);
-            while (itImpl != basesMid)
-            {
-                auto const& name = (*itImpl)->name_.empty() ? (*itImpl)->qualName_ : (*itImpl)->name_;
-                out_->out(name, style_.customType_);
-                ++itImpl;
-                if ((itImpl != basesMid))
-                {
-                    out_->out(", ");
-                }
-            }
-        }
+        // auto itImpl = std::begin(bases);
+        // if (itImpl != basesMid)
+        // {
+        //     out_->out(" implementuje ", style_.keyword_);
+        //     while (itImpl != basesMid)
+        //     {
+        //         // auto const& name = (*itImpl)->name_.empty() ? (*itImpl)->qualName_ : (*itImpl)->name_;
+        //         // out_->out(name, style_.customType_);
+        //         (*itImpl)->accept(*this);
+        //         ++itImpl;
+        //         if ((itImpl != basesMid))
+        //         {
+        //             out_->out(", ");
+        //         }
+        //     }
+        // }
 
         // Print base classes.
-        auto itExt = basesMid;
+        auto itExt = std::begin(bases);
         if (itExt != basesEnd)
         {
             out_->out(" rozširuje ", style_.keyword_);
             while (itExt != basesEnd)
             {
-                auto const& name = (*itExt)->name_.empty() ? (*itExt)->qualName_ : (*itExt)->name_;
-                out_->out(name, style_.customType_);
+                // auto const& name = (*itExt)->name_.empty() ? (*itExt)->qualName_ : (*itExt)->name_;
+                // out_->out(name, style_.customType_);
+                (*itExt)->accept(*this);
                 ++itExt;
                 if (itExt != basesEnd)
                 {
@@ -609,20 +661,24 @@ namespace fri
         out_->inc_indent();
 
         // Visit constructor declarations.
-        for (auto const& con : c.constructors_)
+        auto const constructorsEnd = std::end(c.constructors_);
+        auto constructorsIt = std::begin(c.constructors_);
+        while (constructorsIt != constructorsEnd)
         {
-            this->visit_decl(con);
+            this->visit_decl(c, *constructorsIt, IsInline::Inline);
+            ++constructorsIt;
+            out_->blank_line();
         }
 
         // Visit method declarations.
-        auto const end = std::end(c.methods_);
-        auto it = std::begin(c.methods_);
-        while (it != end)
+        auto const methodsEnd = std::end(c.methods_);
+        auto methodsIt = std::begin(c.methods_);
+        while (methodsIt != methodsEnd)
         {
-            this->visit_decl(*it);
-            ++it;
+            this->visit_decl(c, *methodsIt, IsInline::Inline);
+            ++methodsIt;
 
-            if (it != end)
+            if (methodsIt != methodsEnd)
             {
                 out_->blank_line();
             }
@@ -646,20 +702,19 @@ namespace fri
         out_->end_line();
 
         // Visit constructor definitions.
-        // Visit constructor declarations.
         for (auto const& constr : c.constructors_)
         {
             this->visit_def(c, constr);
         }
 
         // Visit method definitions.
-        it = std::begin(c.methods_);
-        while (it != end)
+        methodsIt = std::begin(c.methods_);
+        while (methodsIt != methodsEnd)
         {
-            this->visit_def(c, *it);
-            ++it;
+            this->visit_def(c, *methodsIt);
+            ++methodsIt;
 
-            if (it != end)
+            if (methodsIt != methodsEnd)
             {
                 out_->blank_line();
             }
@@ -671,23 +726,9 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
-        (Method const& m) -> void
+        (Method const&) -> void
     {
-        out_->begin_line();
-        out_->out("operácia ", style_.keyword_);
-        out_->out(m.name_, style_.function_);
-        out_->out("(");
-
-        this->visit_range(", ", std::begin(m.params_), std::end(m.params_));
-
-        out_->out("): ");
-        m.retType_->accept(*this);
-
-        if (m.body_.has_value())
-        {
-            m.body_.value().accept(*this);
-        }
-        out_->end_line();
+        out_->out("<visit(Method) not implemented>");
     }
 
     auto PseudocodeGenerator::visit
@@ -837,7 +878,7 @@ namespace fri
     {
         c.type_->accept(*this);
         out_->out("(");
-        this->visit_range(", ", std::begin(c.args_), std::end(c.args_)); // TODO visit args
+        this->visit_args(c.args_);
         out_->out(")");
     }
 
@@ -854,7 +895,7 @@ namespace fri
         this->visit_member_base(*m.base_);
         out_->out(m.call_, style_.function_);
         out_->out("(");
-        this->visit_range(", ", std::begin(m.args_), std::end(m.args_));
+        this->visit_args(m.args_);
         out_->out(")");
     }
 
@@ -863,7 +904,7 @@ namespace fri
     {
         e.ex_->accept(*this);
         out_->out("(");
-        this->visit_range(", ", std::begin(e.args_), std::end(e.args_));
+        this->visit_args(e.args_);
         out_->out(")");
     }
 
@@ -1018,74 +1059,87 @@ namespace fri
                                   name;
     }
 
-    auto PseudocodeGenerator::visit
-        (Constructor const& c, CompoundStatement const& b) -> void
+    auto PseudocodeGenerator::visit_decl
+        (Class const& c, Method const& m, IsInline const isIn) -> void
     {
-        out_->out(" {");
-        out_->end_line();
-        out_->inc_indent();
-
-        for (auto const& base : c.baseInitList_)
+        // Outputs method header into single line.
+        auto const out_single_line = [this, &c, &m, isIn]()
         {
             out_->begin_line();
-            out_->out("inicializuj predka ", style_.keyword_);
-            out_->out(base.name_, style_.customType_);
+            out_->out("operácia ", style_.keyword_);
+            if (isIn == IsInline::NoInline)
+            {
+                this->visit_class_name(c);
+                out_->out(".");
+            }
+            out_->out(m.name_, style_.function_);
             out_->out("(");
-            this->visit_range(", ", std::begin(base.init_), std::end(base.init_));
-            out_->out(")");
-            out_->end_line();
-        }
+            this->visit_range(m.params_, [this]()
+            {
+                out_->out(", ");
+            });
+            out_->out("): ");
+            m.retType_->accept(*this);
+        };
 
-        for (auto const& i : c.initList_)
+        // Outputs method header into multiple lines.
+        // Each parameter is on a separate line.
+        auto const out_multi_line = [this, &c, &m, isIn]()
         {
             out_->begin_line();
-            out_->out(i.name_, style_.memberVariable_);
-            out_->out(" ");
-            out_->out(bin_op_to_string(BinOpcode::Assign));
-            out_->out(" ");
-            this->visit_range(", ", std::begin(i.init_), std::end(i.init_));
+            out_->out("operácia ", style_.keyword_);
+            if (isIn == IsInline::NoInline)
+            {
+                this->visit_class_name(c);
+                out_->out(".");
+            }
+            out_->out(m.name_, style_.function_);
+            out_->out("(");
             out_->end_line();
-        }
 
-        for (auto const& s : b.statements_)
+            out_->inc_indent();
+            out_->begin_line();
+            this->visit_range(m.params_, [this]()
+            {
+                out_->out(",");
+                out_->end_line();
+                out_->begin_line();
+            });
+            out_->end_line();
+            out_->dec_indent();
+            out_->begin_line();
+            out_->out("): ");
+            m.retType_->accept(*this);
+        };
+
+        auto const col = this->try_output_length(out_single_line);
+        if (col > 80)
+        {
+            out_multi_line();
+        }
+        else
+        {
+            out_single_line();
+        }
+    }
+
+    auto PseudocodeGenerator::visit_decl
+        (Class const& c, Constructor const& con, IsInline const isIn) -> void
+    {
+        this->visit_decl([this, &c, isIn]()
         {
             out_->begin_line();
-            s->accept(*this);
-            out_->end_line();
-        }
-
-        out_->dec_indent();
-        out_->begin_line();
-        out_->out("}");
+            out_->out("konštruktor", style_.keyword_);
+            if (isIn == IsInline::NoInline)
+            {
+                out_->out(" ");
+                this->visit_class_name(c);
+            }
+        }, con.params_, [](){});
     }
 
     auto PseudocodeGenerator::visit_decl
-        (Method const& m) -> void
-    {
-        out_->begin_line();
-        out_->out("operácia ", style_.keyword_);
-        out_->out(m.name_, style_.function_);
-        out_->out("(");
-
-        this->visit_range(", ", std::begin(m.params_), std::end(m.params_));
-
-        out_->out("): ");
-        m.retType_->accept(*this);
-    }
-
-    auto PseudocodeGenerator::visit_decl
-        (Constructor const& c) -> void
-    {
-        out_->begin_line();
-        out_->out("konštruktor ", style_.keyword_);
-        out_->out("(");
-        this->visit_range(", ", std::begin(c.params_), std::end(c.params_));
-        out_->out(") ");
-        out_->end_line();
-    }
-
-    auto PseudocodeGenerator::visit_decl
-        (Destructor const&) -> void
+        (Class const&, Destructor const&) -> void
     {
         out_->out("deštruktor ", style_.keyword_);
     }
@@ -1098,21 +1152,11 @@ namespace fri
             return;
         }
 
-        out_->begin_line();
-        out_->out("operácia ", style_.keyword_);
-        this->visit_class_name(c);
-        out_->out(".");
-        out_->out(m.name_, style_.function_);
-        out_->out("(");
-
-        this->visit_range(", ", std::begin(m.params_), std::end(m.params_));
-
-        out_->out("): ");
-        m.retType_->accept(*this);
+        this->visit_decl(c, m, IsInline::NoInline);
 
         if (m.body_.has_value())
         {
-            m.body_.value().accept(*this);
+            m.body_->accept(*this);
         }
         out_->end_line();
     }
@@ -1125,16 +1169,48 @@ namespace fri
             return;
         }
 
-        out_->begin_line();
-        out_->out("konštruktor ", style_.keyword_);
-        this->visit_class_name(c);
-        out_->out("(");
-        this->visit_range(", ", std::begin(con.params_), std::end(con.params_));
-        out_->out(")");
+        this->visit_decl(c, con, IsInline::NoInline);
+
         if (con.body_)
         {
-            this->visit(con, *con.body_);
+            out_->out(" {");
+            out_->end_line();
+            out_->inc_indent();
+
+            for (auto const& base : con.baseInitList_)
+            {
+                out_->begin_line();
+                out_->out("inicializuj predka ", style_.keyword_);
+                base.base_->accept(*this);
+                out_->out("(");
+                this->visit_args(base.init_);
+                out_->out(")");
+                out_->end_line();
+            }
+
+            for (auto const& i : con.initList_)
+            {
+                out_->begin_line();
+                out_->out(i.name_, style_.memberVariable_);
+                out_->out(" ");
+                out_->out(bin_op_to_string(BinOpcode::Assign));
+                out_->out(" ");
+                this->visit_args(i.init_);
+                out_->end_line();
+            }
+
+            for (auto const& s : con.body_->statements_)
+            {
+                out_->begin_line();
+                s->accept(*this);
+                out_->end_line();
+            }
+
+            out_->dec_indent();
+            out_->begin_line();
+            out_->out("}");
         }
+
         out_->end_line();
         if (not c.methods_.empty() or c.destructor_.has_value())
         {
@@ -1167,7 +1243,13 @@ namespace fri
     auto PseudocodeGenerator::visit_class_name
         (Class const& c) -> void
     {
-        out_->out(c.name_, style_.customType_);
+        out_->out(c.name_.empty() ? c.qualName_ : c.name_, style_.customType_);
+        if (not c.templateParams_.empty())
+        {
+            out_->out("<");
+            this->output_range(c.templateParams_, ", ", style_.customType_);
+            out_->out(">");
+        }
     }
 
     auto PseudocodeGenerator::visit_member_base
@@ -1182,10 +1264,56 @@ namespace fri
         }
     }
 
-    auto PseudocodeGenerator::op_color
-        (std::string_view const s) -> Color
+    template<class OutputName, class OutputType>
+    auto PseudocodeGenerator::visit_decl
+        (OutputName&& name, std::vector<ParamDefinition> const& params, OutputType&& type) -> void
     {
-        return not s.empty() and std::isalnum(s.front()) ? style_.keyword_.color_ : style_.plain_.color_;
+        // Outputs method header into single line.
+        auto const out_single_line = [this, &name, &params, &type]()
+        {
+            name();
+            out_->out("(");
+            this->visit_range(params, [this]()
+            {
+                out_->out(", ");
+            });
+            out_->out(")");
+            type();
+        };
+
+        // Outputs method header into multiple lines.
+        // Each parameter is on a separate line.
+        auto const out_multi_line = [this, &name, &params, &type]()
+        {
+            name();
+            out_->out("(");
+            out_->end_line();
+
+            out_->inc_indent();
+            out_->begin_line();
+            this->visit_range(params, [this]()
+            {
+                out_->out(",");
+                out_->end_line();
+                out_->begin_line();
+            });
+            out_->end_line();
+
+            out_->dec_indent();
+            out_->begin_line();
+            out_->out(")");
+            type();
+        };
+
+        auto const col = this->try_output_length(out_single_line);
+        if (col > 80)
+        {
+            out_multi_line();
+        }
+        else
+        {
+            out_single_line();
+        }
     }
 
     template<class Range>
@@ -1205,16 +1333,22 @@ namespace fri
         }
     }
 
-    template<class Range>
-    auto PseudocodeGenerator::visit_range
-        (Range&& r, std::string_view d) -> void
+    auto PseudocodeGenerator::visit_args
+        (std::vector<std::unique_ptr<Expression>> const& as) -> void
     {
-        this->visit_range(d, std::begin(r), std::end(r));
+        this->visit_range(as, [this]()
+        {
+            out_->out(", ");
+        });
     }
 
-    template<class InputIt>
-    auto PseudocodeGenerator::visit_range (std::string_view sep, InputIt first, InputIt last) -> void
+    template<class Range, class OutputSep>
+    auto PseudocodeGenerator::visit_range
+        (Range&& r, OutputSep&& s) -> void
     {
+        auto const last = std::end(r);
+        auto first = std::begin(r);
+
         using pointee_t = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
 
         while (first != last)
@@ -1233,9 +1367,22 @@ namespace fri
             ++first;
             if (first != last)
             {
-                out_->out(sep);
+                s();
             }
         }
+    }
+
+    template<class LineOut>
+    auto PseudocodeGenerator::try_output_length
+        (LineOut&& o) -> std::size_t
+    {
+        auto const realOutput = out_;
+        auto dummyOutput = DummyCodePrinter(out_->current_indent());
+        out_ = &dummyOutput;
+        o();
+        auto const column = dummyOutput.get_column();
+        out_ = realOutput;
+        return column;
     }
 
     auto IsCheckVisitorBase::result

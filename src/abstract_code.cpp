@@ -292,9 +292,9 @@ namespace fri
     }
 
     BaseInitPair::BaseInitPair
-        ( std::string                              n
+        ( std::unique_ptr<Type>                    t
         , std::vector<std::unique_ptr<Expression>> es ) :
-        name_ (std::move(n)),
+        base_ (std::move(t)),
         init_ (std::move(es))
     {
     }
@@ -350,9 +350,10 @@ namespace fri
 
     auto is_interface (Class const& c) -> bool
     {
-        return c.fields_.empty()
-           and std::all_of(std::begin(c.bases_), std::end(c.bases_), [](auto const b){ return is_interface(*b); })
-           and std::all_of(std::begin(c.methods_), std::end(c.methods_), [](auto const& m){ return is_pure_virtual(m); });
+        return false;
+        // return c.fields_.empty()
+        //    and std::all_of(std::begin(c.bases_), std::end(c.bases_), [](auto const b){ return is_interface(*b); })
+        //    and std::all_of(std::begin(c.methods_), std::end(c.methods_), [](auto const& m){ return is_pure_virtual(m); });
     }
 
     TranslationUnit::TranslationUnit

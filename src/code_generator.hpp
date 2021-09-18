@@ -71,6 +71,15 @@ namespace fri
     };
 
     /**
+     *  @brief Describes actual state of indentation in a code printer.
+     */
+    struct IndentState
+    {
+        std::size_t step;
+        std::size_t current;
+    };
+
+    /**
      *  @brief Interface for code printers.
      */
     class ICodePrinter
@@ -109,22 +118,49 @@ namespace fri
         virtual auto out (std::string_view) -> ICodePrinter& = 0;
 
         /**
-         *  @brief Prints string to the output using given or similar color if possible and given style if possible.
+         *  @brief Prints string to the output using given style if possible.
          */
         virtual auto out (std::string_view, TextStyle const&) -> ICodePrinter& = 0;
+
+        /**
+         *  @brief Current state of indentation.
+         */
+        virtual auto current_indent () const -> IndentState = 0;
+    };
+
+    /**
+     *  @brief Implements indentation that is common for all printers.
+     */
+    class CommonCodePrinter : public ICodePrinter
+    {
+    public:
+        CommonCodePrinter (OutputSettings const&);
+        CommonCodePrinter (IndentState);
+
+        auto inc_indent     () -> void override;
+        auto dec_indent     () -> void override;
+        auto current_indent () const -> IndentState override;
+
+    protected:
+        auto get_indent () const -> std::string_view;
+
+    private:
+        inline static constexpr auto Spaces
+            = std::string_view("                                             ");
+
+    private:
+        std::size_t indentStep_;
+        std::size_t indentCurrent_;
     };
 
     /**
      *  @brief Prints code to the console.
      */
-    class ConsoleCodePrinter : public ICodePrinter
+    class ConsoleCodePrinter : public CommonCodePrinter
     {
     public:
         ConsoleCodePrinter  (OutputSettings const&);
-        ~ConsoleCodePrinter ();
 
-        auto inc_indent () -> void override;
-        auto dec_indent () -> void override;
         auto begin_line () -> void override;
         auto end_line   () -> void override;
         auto blank_line () -> void override;
@@ -133,32 +169,31 @@ namespace fri
         auto out (std::string_view, TextStyle const&) -> ConsoleCodePrinter& override;
 
     private:
-        auto set_color   (Color const&) -> void;
-        auto reset_color ()             -> void;
+        using base = CommonCodePrinter;
 
     private:
-        std::size_t      indentStep_;
-        std::size_t      currentIndent_;
-        std::string_view spaces_;
+        auto set_color   (Color const&) -> void;
+        auto reset_color ()             -> void;
     };
 
     /**
      *  @brief Prints code to a RTF file.
      */
-    class RtfCodePrinter : public ICodePrinter
+    class RtfCodePrinter : public CommonCodePrinter
     {
     public:
         RtfCodePrinter   (std::ofstream&, OutputSettings const&);
         ~RtfCodePrinter  ();
 
-        auto inc_indent  () -> void override;
-        auto dec_indent  () -> void override;
         auto begin_line  () -> void override;
         auto end_line    () -> void override;
         auto blank_line  () -> void override;
 
         auto out (std::string_view) -> RtfCodePrinter& override;
         auto out (std::string_view, TextStyle const&) -> RtfCodePrinter& override;
+
+    private:
+        using base = CommonCodePrinter;
 
     private:
         auto begin_color (Color const&) -> void;
@@ -170,10 +205,36 @@ namespace fri
 
     private:
         std::ofstream*     ofst_;
-        std::size_t        indentStep_;
-        std::size_t        currentIndent_;
-        std::string_view   spaces_;
         std::vector<Color> colors_;
+    };
+
+    /**
+     *  @brief /dev/null code printer.
+     */
+    class DummyCodePrinter : public CommonCodePrinter
+    {
+    public:
+        DummyCodePrinter (IndentState);
+
+        auto begin_line  () -> void override;
+        auto end_line    () -> void override;
+        auto blank_line  () -> void override;
+
+        auto out (std::string_view) -> DummyCodePrinter& override;
+        auto out (std::string_view, TextStyle const&) -> DummyCodePrinter& override;
+
+        auto get_column () const -> std::size_t;
+
+    private:
+        using base = CommonCodePrinter;
+
+    private:
+        std::size_t currentColumn_ {0};
+    };
+
+    enum class IsInline
+    {
+        Inline, NoInline
     };
 
     /**
@@ -234,28 +295,42 @@ namespace fri
         static auto is_bothtfix        (UnOpcode)  -> bool;
         static auto simplify_type_name (std::string_view) -> std::string_view;
 
-        auto visit (Constructor const&, CompoundStatement const&) -> void;
-
-        auto visit_decl (Method const&)      -> void;
-        auto visit_decl (Constructor const&) -> void;
-        auto visit_decl (Destructor const&)  -> void;
-        auto visit_def  (Class const&, Method const&)      -> void;
-        auto visit_def  (Class const&, Constructor const&) -> void;
-        auto visit_def  (Class const&, Destructor const&)  -> void;
+        auto visit_decl (Class const&, Method const&, IsInline)      -> void;
+        auto visit_decl (Class const&, Constructor const&, IsInline) -> void;
+        auto visit_decl (Class const&, Destructor const&)            -> void;
+        auto visit_def  (Class const&, Method const&)                -> void;
+        auto visit_def  (Class const&, Constructor const&)           -> void;
+        auto visit_def  (Class const&, Destructor const&)            -> void;
 
         auto visit_member_base (Expression const&) -> void;
         auto visit_class_name  (Class const&) -> void;
 
-        auto op_color (std::string_view) -> Color;
+        /**
+         *  @brief Outputs declaration of method/constructor either into single
+         *  line or multiple line if the decl is long.
+         *  @tparam OutputName outputs `int foo` or `int Bar.foo`
+         *          or `konštruktor` or `konštruktor Bar`.
+         *  @tparam OutputType outputs `: int` or nothing for constructor.
+         */
+        template<class OutputName, class OutputType>
+        auto visit_decl (OutputName&&, std::vector<ParamDefinition> const&, OutputType&&) -> void;
 
         template<class Range>
         auto output_range (Range&&, std::string_view, TextStyle const&) -> void;
 
-        template<class Range>
-        auto visit_range (Range&&, std::string_view) -> void;
+        auto visit_args (std::vector<std::unique_ptr<Expression>> const&) -> void;
 
-        template<class InputIt>
-        auto visit_range (std::string_view, InputIt, InputIt) -> void;
+        template<class Range, class OutputSep>
+        auto visit_range (Range&&, OutputSep&&) -> void;
+
+        /**
+         *  Temporarly swaps @c out_ for dummy, executes @c LineOut arg
+         *  and then returns length of the current line.
+         *  (If @c LineOut uses multiple lines, it returns length
+         *  of the last line. )
+         */
+        template<class LineOut>
+        auto try_output_length (LineOut&&) -> std::size_t;
 
     private:
         ICodePrinter* out_;

@@ -64,7 +64,7 @@ namespace fri
 
     struct TemplatedType : public VisitableFamily<Type, TemplatedType>
     {
-        std::unique_ptr<Type> base_;
+        std::unique_ptr<Type>              base_;
         std::vector<std::unique_ptr<Type>> args_;
         TemplatedType (std::unique_ptr<Type>, std::vector<std::unique_ptr<Type>>);
     };
@@ -324,9 +324,10 @@ namespace fri
 
     struct BaseInitPair
     {
-        std::string                              name_;
+        std::unique_ptr<Type>                    base_;
         std::vector<std::unique_ptr<Expression>> init_;
-        BaseInitPair(std::string, std::vector<std::unique_ptr<Expression>>);
+        BaseInitPair( std::unique_ptr<Type>
+                    , std::vector<std::unique_ptr<Expression>> );
     };
 
     struct MemberInitPair
@@ -370,14 +371,14 @@ namespace fri
 
     struct Class : public Visitable<Class>
     {
-        std::string                  qualName_;
-        std::string                  name_;
-        std::vector<std::string>     templateParams_;
-        std::vector<Constructor>     constructors_;
-        std::optional<Destructor>    destructor_;
-        std::vector<Method>          methods_;
-        std::vector<FieldDefinition> fields_;
-        std::vector<Class*>          bases_;
+        std::string                        qualName_;
+        std::string                        name_;
+        std::vector<std::string>           templateParams_;
+        std::vector<Constructor>           constructors_;
+        std::optional<Destructor>          destructor_;
+        std::vector<Method>                methods_;
+        std::vector<FieldDefinition>       fields_;
+        std::vector<std::unique_ptr<Type>> bases_;
 
         Class (std::string qualName);
     };

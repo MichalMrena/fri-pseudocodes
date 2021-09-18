@@ -52,7 +52,7 @@ namespace fri
         }
         else
         {
-            typePtr->dump();
+                typePtr->dump();
             return std::make_unique<PrimType>(std::string("<unknown type> (") + qt.getAsString() + std::string(")"));
         }
     }

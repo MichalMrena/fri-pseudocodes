@@ -47,16 +47,16 @@ namespace fri
         for (auto const base : classDecl->bases())
         {
             auto const bt = base.getType();
-            if (bt->isRecordType())
-            {
-                auto const baseDecl = bt->getAs<clang::RecordType>()->getAsCXXRecordDecl();
-                c.bases_.emplace_back(&this->get_class(baseDecl->getQualifiedNameAsString()));
-            }
-            else if (auto const tt = clang::dyn_cast<clang::TemplateSpecializationType>(bt.getTypePtr()))
-            {
-                c.bases_.emplace_back(&this->get_class(tt->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString()));
-            }
-
+            // if (bt->isRecordType())
+            // {
+            //     auto const baseDecl = bt->getAs<clang::RecordType>()->getAsCXXRecordDecl();
+            //     c.bases_.emplace_back(&this->get_class(baseDecl->getQualifiedNameAsString()));
+            // }
+            // else if (auto const tt = clang::dyn_cast<clang::TemplateSpecializationType>(bt.getTypePtr()))
+            // {
+            //     c.bases_.emplace_back(&this->get_class(tt->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString()));
+            // }
+            c.bases_.emplace_back(extract_type(context_->getPrintingPolicy(), bt));
         }
 
         // Read all member variables.
@@ -163,21 +163,30 @@ namespace fri
     }
 
     auto ClassVisitor::get_base_name
-        (clang::Type const* t) -> std::string
+        (clang::Type const* t) -> std::unique_ptr<Type>
     {
         if (auto icn = clang::dyn_cast<clang::InjectedClassNameType>(t))
         {
-            return icn->getDecl()->getNameAsString();
+            return get_base_name(icn->getInjectedTST());
         }
         else if (auto tst = clang::dyn_cast<clang::TemplateSpecializationType>(t))
         {
-            auto tDecl = tst->getTemplateName().getAsTemplateDecl();
-            return tDecl ? tDecl->getNameAsString() : "<unknown template>";
+            auto temDecl = tst->getTemplateName().getAsTemplateDecl();
+            auto name = temDecl ? temDecl->getNameAsString() : "<some template>";
+            auto args = std::vector<std::unique_ptr<Type>>();
+            auto const argc = tst->getNumArgs();
+            for (auto i = 0u; i < argc; ++i)
+            {
+                auto const arg = tst->getArg(i);
+                args.emplace_back(extract_type(context_->getPrintingPolicy(), arg.getAsType()));
+            }
+            return std::make_unique<TemplatedType>( std::make_unique<CustomType>(name)
+                                                  , std::move(args) );
         }
         else
         {
-            t->dump();
-            return std::string("base");
+                t->dump();
+            return std::make_unique<CustomType>("base");
         }
     }
 
