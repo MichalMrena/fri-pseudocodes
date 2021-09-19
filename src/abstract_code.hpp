@@ -28,6 +28,8 @@ namespace fri
     {
         virtual ~Type () = default;
         virtual auto accept (CodeVisitor&) const -> void = 0;
+        virtual auto to_string () const -> std::string = 0;
+        virtual auto is_const  () const -> bool = 0;
     };
 
     /**
@@ -50,29 +52,56 @@ namespace fri
 
 // Types:
 
-    struct PrimType : public VisitableFamily<Type, PrimType>
+    struct IsConst
     {
-        std::string name_;
-        PrimType (std::string name);
+        bool is_;
+        IsConst (bool);
+        operator bool () const;
     };
 
-    struct CustomType : public VisitableFamily<Type, CustomType>
+    template<class Derived>
+    struct CommonType : public VisitableFamily<Type, Derived>
     {
-        std::string name_;
-        CustomType (std::string name);
+        bool isConst_;
+        CommonType (IsConst);
+        auto is_const () const -> bool override;
     };
 
-    struct TemplatedType : public VisitableFamily<Type, TemplatedType>
+    struct PrimType : public CommonType<PrimType>
+    {
+        std::string name_;
+        PrimType (IsConst, std::string);
+        auto to_string () const -> std::string override;
+    };
+
+    struct CustomType : public CommonType<CustomType>
+    {
+        std::string name_;
+        CustomType (IsConst, std::string);
+        auto to_string () const -> std::string override;
+    };
+
+    struct TemplatedType : public CommonType<TemplatedType>
     {
         std::unique_ptr<Type>              base_;
         std::vector<std::unique_ptr<Type>> args_;
-        TemplatedType (std::unique_ptr<Type>, std::vector<std::unique_ptr<Type>>);
+        TemplatedType (IsConst, std::unique_ptr<Type>, std::vector<std::unique_ptr<Type>>);
+        auto to_string () const -> std::string override;
     };
 
-    struct Indirection : public VisitableFamily<Type, Indirection>
+    struct Indirection : public CommonType<Indirection>
     {
         std::unique_ptr<Type> pointee_ {};
-        Indirection (std::unique_ptr<Type> pointee);
+        Indirection (IsConst, std::unique_ptr<Type>);
+        auto to_string () const -> std::string override;
+    };
+
+    struct Function : public CommonType<Function>
+    {
+        std::vector<std::unique_ptr<Type>> params_;
+        std::unique_ptr<Type>              ret_;
+        Function (std::vector<std::unique_ptr<Type>>, std::unique_ptr<Type>);
+        auto to_string () const -> std::string override;
     };
 
 // Other:
@@ -367,8 +396,6 @@ namespace fri
               , std::optional<CompoundStatement> );
     };
 
-    auto is_pure_virtual (Method const&) -> bool;
-
     struct Class : public Visitable<Class>
     {
         std::string                        qualName_;
@@ -381,9 +408,11 @@ namespace fri
         std::vector<std::unique_ptr<Type>> bases_;
 
         Class (std::string qualName);
+        auto name () const -> std::string;
     };
 
     auto is_interface (Class const&) -> bool;
+    auto is_interface (Type const&) -> bool;
 
     /**
      *  @brief Code from a translation unit. Just classes for now.
@@ -430,6 +459,7 @@ namespace fri
         virtual auto visit (CustomType const&)           -> void = 0;
         virtual auto visit (TemplatedType const&)        -> void = 0;
         virtual auto visit (Indirection const&)          -> void = 0;
+        virtual auto visit (Function const&)             -> void = 0;
 
         virtual auto visit (Class const&)                -> void = 0;
         virtual auto visit (Method const&)               -> void = 0;

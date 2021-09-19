@@ -600,60 +600,97 @@ namespace fri
     }
 
     auto PseudocodeGenerator::visit
+        (Function const& f) -> void
+    {
+        out_->out("(");
+        this->visit_range(f.params_, [this]()
+        {
+            out_->out(", ");
+        });
+        out_->out(") -> ");
+        f.ret_->accept(*this);
+    }
+
+    auto PseudocodeGenerator::visit
         (Class const& c) -> void
     {
-        // TODO base classes as templates, add visit_class_name
         // Class header.
         out_->begin_line();
-        // out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", style_.keyword_);
-        out_->out("Trieda ", style_.keyword_);
+        out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", style_.keyword_);
         this->visit_class_name(c);
 
-        // Split base classes to interfaces and classes.
-        auto& bases          = c.bases_;
-        auto const basesEnd = std::end(bases);
-        auto const basesMid = std::end(bases);
-        // auto const basesEnd = std::end(bases);
-        // auto const basesMid = std::stable_partition(std::begin(bases), std::end(bases), [](auto const b)
-        // {
-        //     // return is_interface(*b);
-        //     return true; // TODO
-        // });
-
-        // Print implemented interfaces.
-        // auto itImpl = std::begin(bases);
-        // if (itImpl != basesMid)
-        // {
-        //     out_->out(" implementuje ", style_.keyword_);
-        //     while (itImpl != basesMid)
-        //     {
-        //         // auto const& name = (*itImpl)->name_.empty() ? (*itImpl)->qualName_ : (*itImpl)->name_;
-        //         // out_->out(name, style_.customType_);
-        //         (*itImpl)->accept(*this);
-        //         ++itImpl;
-        //         if ((itImpl != basesMid))
-        //         {
-        //             out_->out(", ");
-        //         }
-        //     }
-        // }
+        auto const baseCount = std::ranges::count_if(c.bases_, [](auto const& t)
+        {
+            return not is_interface(*t);
+        });
+        auto const interfaceCount = c.bases_.size() - static_cast<std::size_t>(baseCount);
 
         // Print base classes.
-        auto itExt = std::begin(bases);
-        if (itExt != basesEnd)
+        if (baseCount)
         {
-            out_->out(" rozširuje ", style_.keyword_);
-            while (itExt != basesEnd)
+            out_->end_line();
+            out_->inc_indent();
+            out_->begin_line();
+
+            out_->out("rozširuje ", style_.keyword_);
+            auto const end = std::end(c.bases_);
+            auto it = std::begin(c.bases_);
+            while (it != end and is_interface(**it))
             {
-                // auto const& name = (*itExt)->name_.empty() ? (*itExt)->qualName_ : (*itExt)->name_;
-                // out_->out(name, style_.customType_);
-                (*itExt)->accept(*this);
-                ++itExt;
-                if (itExt != basesEnd)
+                ++it;
+            }
+            while (it != end)
+            {
+                (*it)->accept(*this);
+                ++it;
+                while (it != end and is_interface(**it))
+                {
+                    ++it;
+                }
+                if (it != end)
                 {
                     out_->out(", ");
                 }
             }
+
+            if (interfaceCount)
+            {
+                out_->end_line();
+            }
+            out_->dec_indent();
+        }
+
+        // Print base interfaces.
+        if (interfaceCount)
+        {
+            if (not baseCount)
+            {
+                out_->end_line();
+            }
+            out_->inc_indent();
+            out_->begin_line();
+
+            out_->out("implementuje ", style_.keyword_);
+            auto const end = std::end(c.bases_);
+            auto it = std::begin(c.bases_);
+            while (it != end and not is_interface(**it))
+            {
+                ++it;
+            }
+            while (it != end)
+            {
+                (*it)->accept(*this);
+                ++it;
+                while (it != end and not is_interface(**it))
+                {
+                    ++it;
+                }
+                if (it != end)
+                {
+                    out_->out(", ");
+                }
+            }
+            out_->dec_indent();
         }
 
         out_->out(" {");
@@ -692,6 +729,11 @@ namespace fri
         for (auto const& f : c.fields_)
         {
             f.accept(*this);
+        }
+
+        if (c.fields_.empty())
+        {
+            out_->end_line();
         }
 
         // Class end.
@@ -799,9 +841,21 @@ namespace fri
     auto PseudocodeGenerator::visit
         (FieldDefinition const& f) -> void
     {
+        using namespace std::string_view_literals;
+        auto const keyword = f.var_.type_->is_const() ? "konštanta "sv
+                                                      : "vlastnosť "sv;
         out_->begin_line();
-        out_->out("vlastnosť ", style_.keyword_);
-        f.var_.accept(*this);
+        out_->out(keyword, style_.keyword_);
+        out_->out(f.var_.name_, style_.memberVariable_);
+        out_->out(": ");
+        f.var_.type_->accept(*this);
+        if (f.var_.initializer_)
+        {
+            out_->out(" ");
+            out_->out(bin_op_to_string(BinOpcode::Assign));
+            out_->out(" ");
+            f.var_.initializer_->accept(*this);
+        }
         out_->end_line();
     }
 

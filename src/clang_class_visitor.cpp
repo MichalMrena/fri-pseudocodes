@@ -62,8 +62,19 @@ namespace fri
         // Read all member variables.
         for (auto const field : classDecl->fields())
         {
-            c.fields_.emplace_back( extract_type(context_->getPrintingPolicy(), field->getType())
-                                  , field->getNameAsString() );
+            auto const init = field->getInClassInitializer();
+            auto type = extract_type(context_->getPrintingPolicy(), field->getType());
+            if (init)
+            {
+                c.fields_.emplace_back( std::move(type)
+                                      , field->getNameAsString()
+                                      , expressioner_.read_expression(init) );
+            }
+            else
+            {
+                c.fields_.emplace_back( std::move(type)
+                                      , field->getNameAsString() );
+            }
         }
 
         // Read all methods.
@@ -180,13 +191,14 @@ namespace fri
                 auto const arg = tst->getArg(i);
                 args.emplace_back(extract_type(context_->getPrintingPolicy(), arg.getAsType()));
             }
-            return std::make_unique<TemplatedType>( std::make_unique<CustomType>(name)
+            return std::make_unique<TemplatedType>( IsConst(false)
+                                                  , std::make_unique<CustomType>(IsConst(false), name)
                                                   , std::move(args) );
         }
         else
         {
-                t->dump();
-            return std::make_unique<CustomType>("base");
+                // t->dump();
+            return std::make_unique<CustomType>(IsConst(false), "base");
         }
     }
 

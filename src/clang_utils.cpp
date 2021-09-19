@@ -4,34 +4,35 @@ namespace fri
 {
     auto extract_type (clang::PrintingPolicy const& pp, clang::QualType qt) -> std::unique_ptr<Type>
     {
+        auto const isConst = qt.isConstQualified();
         auto const typePtr = qt.getTypePtr();
         if (auto const ptr = clang::dyn_cast<clang::PointerType>(typePtr))
         {
-            return std::make_unique<Indirection>(extract_type(pp, ptr->getPointeeType()));
+            return std::make_unique<Indirection>(isConst, extract_type(pp, ptr->getPointeeType()));
         }
         else if (auto const ref = clang::dyn_cast<clang::ReferenceType>(typePtr))
         {
-            return std::make_unique<Indirection>(extract_type(pp, ref->getPointeeType()));
+            return std::make_unique<Indirection>(isConst, extract_type(pp, ref->getPointeeType()));
         }
         else if (auto const builtin = clang::dyn_cast<clang::BuiltinType>(typePtr))
         {
-            return std::make_unique<PrimType>(builtin->getName(pp).str());
+            return std::make_unique<PrimType>(isConst, builtin->getName(pp).str());
         }
         else if (auto const typedefed = clang::dyn_cast<clang::TypedefType>(typePtr))
         {
             using uptr = std::unique_ptr<Type>;
             return clang::isa<clang::BuiltinType>(typedefed->desugar().getTypePtr())
-                ? uptr(std::make_unique<PrimType>(typedefed->getDecl()->getName().str()))
-                : std::make_unique<CustomType>(typedefed->getDecl()->getName().str());
+                ? uptr(std::make_unique<PrimType>(isConst, typedefed->getDecl()->getName().str()))
+                : std::make_unique<CustomType>(isConst, typedefed->getDecl()->getName().str());
         }
         else if (auto const record = clang::dyn_cast<clang::RecordType>(typePtr))
         {
-            return std::make_unique<CustomType>(record->getAsRecordDecl()->getName().str());
+            return std::make_unique<CustomType>(isConst, record->getAsRecordDecl()->getName().str());
         }
         else if (auto temParam = clang::dyn_cast<clang::TemplateTypeParmType>(typePtr))
         {
             auto paramDecl = temParam->getDecl();
-            return std::make_unique<CustomType>(paramDecl->getIdentifier()->getName().str());
+            return std::make_unique<CustomType>(isConst, paramDecl->getIdentifier()->getName().str());
         }
         else if (auto tem = clang::dyn_cast<clang::TemplateSpecializationType>(typePtr))
         {
@@ -40,20 +41,57 @@ namespace fri
             auto args = std::vector<std::unique_ptr<Type>>();
             for (auto i = 0u; i < tem->getNumArgs(); ++i)
             {
-                auto const argType = tem->getArg(i).getAsType();
-                args.emplace_back(extract_type(pp, argType));
+                auto const arg = tem->getArg(i);
+                switch (arg.getKind())
+                {
+                    case clang::TemplateArgument::ArgKind::Type:
+                    {
+                        auto const argType = arg.getAsType();
+                        args.emplace_back(extract_type(pp, argType));
+                        break;
+                    }
+
+                    case clang::TemplateArgument::ArgKind::Expression:
+                    {
+                        args.emplace_back(std::make_unique<PrimType>(IsConst(false), "<dummy expr>"));
+                        break;
+                    }
+
+                    case clang::TemplateArgument::ArgKind::Integral:
+                    {
+                        args.emplace_back(std::make_unique<PrimType>(IsConst(false), "<dummy integral>"));
+                        break;
+                    }
+
+                    default:
+                    {
+                        args.emplace_back(std::make_unique<PrimType>(IsConst(false), "<dummy other>"));
+                        break;
+                    }
+                }
             }
-            return std::make_unique<TemplatedType>( std::make_unique<CustomType>(name)
+            return std::make_unique<TemplatedType>( isConst
+                                                  , std::make_unique<CustomType>(IsConst(false), name)
                                                   , std::move(args) );
         }
         else if (auto elab = clang::dyn_cast<clang::ElaboratedType>(typePtr))
         {
             return extract_type(pp, elab->desugar());
         }
+        else if (auto func = clang::dyn_cast<clang::FunctionProtoType>(typePtr))
+        {
+            auto params = std::vector<std::unique_ptr<Type>>();
+            for (auto const paramType : func->getParamTypes())
+            {
+                params.emplace_back(extract_type(pp, paramType));
+            }
+            return std::make_unique<Function>( std::move(params)
+                                             , extract_type(pp, func->getReturnType()) );
+        }
         else
         {
                 typePtr->dump();
-            return std::make_unique<PrimType>(std::string("<unknown type> (") + qt.getAsString() + std::string(")"));
+            return std::make_unique<PrimType>(IsConst(false), std::string("<unknown type> (") + qt.getAsString() + std::string(")"));
         }
     }
 

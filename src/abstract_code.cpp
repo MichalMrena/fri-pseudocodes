@@ -4,30 +4,134 @@
 
 namespace fri
 {
+    IsConst::IsConst
+        (bool const is) :
+        is_ {is}
+    {
+    }
+
+    IsConst::operator bool
+        () const
+    {
+        return is_;
+    }
+
+    template<class Derived>
+    CommonType<Derived>::CommonType
+        (IsConst const is) :
+        isConst_ (is)
+    {
+    }
+
+    template<class Derived>
+    auto CommonType<Derived>::is_const
+        () const -> bool
+    {
+        return isConst_;
+    }
+
     PrimType::PrimType
-        (std::string name) :
+        (IsConst const is, std::string name) :
+        CommonType<PrimType> (is),
         name_ (std::move(name))
     {
+    }
+
+    auto PrimType::to_string
+        () const -> std::string
+    {
+        return name_;
     }
 
     CustomType::CustomType
-        (std::string name) :
+        (IsConst const is, std::string name) :
+        CommonType<CustomType> (is),
         name_ (std::move(name))
     {
     }
 
+    auto CustomType::to_string
+        () const -> std::string
+    {
+        return name_;
+    }
+
     TemplatedType::TemplatedType
-        ( std::unique_ptr<Type>              b
+        ( IsConst const is
+        , std::unique_ptr<Type>              b
         , std::vector<std::unique_ptr<Type>> as ) :
+        CommonType<TemplatedType> (is),
         base_ (std::move(b)),
         args_ (std::move(as))
     {
     }
 
+    auto TemplatedType::to_string
+        () const -> std::string
+    {
+        auto ret = base_->to_string();
+        if (not args_.empty())
+        {
+            ret += "<";
+        }
+        auto const end = std::end(args_);
+        auto it = std::begin(args_);
+        while (it != end)
+        {
+            ret += (*it)->to_string();
+            ++it;
+            if (it != end)
+            {
+                ret += ", ";
+            }
+        }
+        if (not args_.empty())
+        {
+            ret += ">";
+        }
+        return ret;
+    }
+
     Indirection::Indirection
-        (std::unique_ptr<Type> pointee) :
+        (IsConst const is, std::unique_ptr<Type> pointee) :
+        CommonType<Indirection> (is),
         pointee_ (std::move(pointee))
     {
+    }
+
+    auto Indirection::to_string
+        () const -> std::string
+    {
+        return pointee_->to_string() + "*";
+    }
+
+    Function::Function
+        ( std::vector<std::unique_ptr<Type>> ps
+        , std::unique_ptr<Type>              r ) :
+        CommonType<Function> (IsConst(false)),
+        params_ (std::move(ps)),
+        ret_    (std::move(r))
+    {
+    }
+
+    auto Function::to_string
+        () const -> std::string
+    {
+        auto ret = std::string("(");
+        auto const end = std::end(params_);
+        auto it = std::begin(params_);
+        while (it != end)
+        {
+            ret += (*it)->to_string();
+            ++it;
+            if (it != end)
+            {
+                ret += ", ";
+            }
+        }
+        ret += ") -> ";
+        ret += ret_->to_string();
+        return ret;
     }
 
     VarDefCommon::VarDefCommon
@@ -337,23 +441,47 @@ namespace fri
     {
     }
 
-    auto is_pure_virtual (Method const& m) -> bool
-    {
-        return not m.body_.has_value();
-    }
-
     Class::Class
         (std::string qualName) :
         qualName_ (std::move(qualName))
     {
     }
 
+    auto Class::name
+        () const -> std::string
+    {
+        return name_;
+    }
+
+    namespace
+    {
+        constexpr auto Interfaces = { "AbstractMemoryType"
+                                    , "Table"
+                                    , "Stack"
+                                    , "Queue"
+                                    , "PriorityQueue"
+                                    , "List"
+                                    , "Array" };
+
+        auto is_interface (std::string_view const name) -> bool
+        {
+            auto const arrowIt = std::ranges::find(name, '<');
+            auto const pos     = std::distance(std::begin(name), arrowIt);
+            auto const prefix  = arrowIt == std::end(name)
+                ? name
+                : name.substr(0, static_cast<std::size_t>(pos));
+            return std::ranges::find(Interfaces, prefix) != std::end(Interfaces);
+        }
+    }
+
     auto is_interface (Class const& c) -> bool
     {
-        return false;
-        // return c.fields_.empty()
-        //    and std::all_of(std::begin(c.bases_), std::end(c.bases_), [](auto const b){ return is_interface(*b); })
-        //    and std::all_of(std::begin(c.methods_), std::end(c.methods_), [](auto const& m){ return is_pure_virtual(m); });
+        return is_interface(std::string_view(c.name()));
+    }
+
+    auto is_interface (Type const& t) -> bool
+    {
+        return is_interface(std::string_view(t.to_string()));
     }
 
     TranslationUnit::TranslationUnit

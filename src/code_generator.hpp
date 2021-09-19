@@ -269,6 +269,7 @@ namespace fri
         auto visit (CustomType const&)           -> void override;
         auto visit (TemplatedType const&)        -> void override;
         auto visit (Indirection const&)          -> void override;
+        auto visit (Function const&)             -> void override;
 
         auto visit (Class const&)                -> void override;
         auto visit (Method const&)               -> void override;
@@ -366,6 +367,7 @@ namespace fri
         auto visit (CustomType const&)           -> void override {};
         auto visit (TemplatedType const&)        -> void override {};
         auto visit (Indirection const&)          -> void override {};
+        auto visit (Function const&)             -> void override {};
 
         auto visit (Class const&)                -> void override {};
         auto visit (Method const&)               -> void override {};
