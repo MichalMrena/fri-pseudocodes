@@ -547,16 +547,20 @@ namespace fri
     auto PseudocodeGenerator::visit
         (IfExpression const& c) -> void
     {
+        out_->out("Keď platí ", style_.controlKeyword_);
         out_->out("(");
-        out_->out("Ak ", style_.controlKeyword_);
         c.cond_->accept(*this);
-        out_->out(" potom ", style_.controlKeyword_);
+        out_->out(")");
+        out_->end_line();
+        out_->inc_indent();
+        out_->begin_line();
+        out_->out("tak vráť ", style_.controlKeyword_);
         c.then_->accept(*this);
         out_->end_line();
         out_->begin_line();
-        out_->out("inak ", style_.controlKeyword_);
+        out_->out("inak vráť ", style_.controlKeyword_);
         c.else_->accept(*this);
-        out_->out(")");
+        out_->dec_indent();
     }
 
     auto PseudocodeGenerator::visit
@@ -576,10 +580,35 @@ namespace fri
     {
         t.base_->accept(*this);
         out_->out("<");
-        this->visit_range(t.args_, [this]()
-        {
-            out_->out(", ");
-        });
+
+        this->visit_range(t.args_,
+            [this](auto const& var)
+            {
+                std::visit([this](auto const& p)
+                {
+                    p->accept(*this);
+                }, var);
+            },
+            [this]()
+            {
+                out_->out(", ");
+            });
+
+        // auto const end = std::end(t.args_);
+        // auto it = std::begin(t.args_);
+        // while (it != end)
+        // {
+        //     std::visit([this](auto const& p)
+        //     {
+        //         p->accept(*this);
+        //     }, *it);
+
+        //     ++it;
+        //     if (it != end)
+        //     {
+        //         out_->out(", ");
+        //     }
+        // }
         out_->out(">");
     }
 
@@ -609,6 +638,14 @@ namespace fri
         });
         out_->out(") -> ");
         f.ret_->accept(*this);
+    }
+
+    auto PseudocodeGenerator::visit
+        (Nested const& n) -> void
+    {
+        n.nest_->accept(*this);
+        out_->out(".");
+        out_->out(n.name_, style_.customType_);
     }
 
     auto PseudocodeGenerator::visit
@@ -776,24 +813,25 @@ namespace fri
     auto PseudocodeGenerator::visit
         (ForLoop const& f) -> void
     {
-        out_->out("Pre ", style_.controlKeyword_);
+        auto forVar  = ForVarDefVisitor(*this);
+        auto forFrom = ForFromVisitor(*this);
+        auto forTo   = ForToVisitor(*this);
+
+        out_->out("Opakuj pre premennú ", style_.controlKeyword_);
         if (f.var_)
         {
-            f.var_->accept(*this);
+            f.var_->accept(forVar);
         }
-            else
-            {
-                out_->out("null");
-            }
-        out_->out(" pokiaľ ", style_.controlKeyword_);
+
+        out_->out(" od ", style_.controlKeyword_);
+        if (f.var_)
+        {
+            f.var_->accept(forFrom);
+        }
+        out_->out(" do ", style_.controlKeyword_);
         if (f.cond_)
         {
-            f.cond_->accept(*this);
-        }
-        out_->out(" pričom ", style_.controlKeyword_);
-        if (f.inc_)
-        {
-            f.inc_->accept(*this);
+            f.cond_->accept(forTo);
         }
         f.body_.accept(*this);
     }
@@ -915,7 +953,9 @@ namespace fri
         i.then_.accept(*this);
         if (i.else_)
         {
-            out_->out(" inak", style_.controlKeyword_);
+            out_->end_line();
+            out_->begin_line();
+            out_->out("inak", style_.controlKeyword_);
             i.else_.value().accept(*this);
         }
     }
@@ -965,30 +1005,20 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Lambda const& l) -> void
     {
-        // out_->out("λ", colors_.keyword_, FontStyle::Bold);
+        out_->out("λ", style_.keyword_);
+        out_->out("(");
+        this->visit_range(l.params_,
+            [this](auto const& p)
+            {
+                out_->out(p.var_.name_, style_.variable_);
+            },
+            [this]()
+            {
+                out_->out(", ");
+            });
+        out_->out(")");
 
-        for (auto const& p : l.params_)
-        {
-            out_->out("λ", style_.keyword_);
-            out_->out(p.var_.name_, style_.variable_);
-            out_->out(" ");
-        }
-
-        // out_->out("(", colors_.plain_);
-        // auto const pend = std::end(l.params_);
-        // auto pit = std::begin(l.params_);
-        // while (pit != pend)
-        // {
-        //     out_->out((*pit).var_.name_, colors_.variable_);
-        //     ++pit;
-        //     if (pit != pend)
-        //     {
-        //         out_->out(", ", colors_.plain_);
-        //     }
-        // }
-        // out_->out(")", colors_.plain_);
-
-        out_->out("-> { ");
+        out_->out(" { ");
         auto const end = std::end(l.body_.statements_);
         auto it = std::begin(l.body_.statements_);
         while (it != end)
@@ -1007,6 +1037,18 @@ namespace fri
         (Throw const&) -> void
     {
         out_->out("CHYBA", style_.stringLiteral_);
+    }
+
+    auto PseudocodeGenerator::out_plain
+        (std::string_view const s) -> void
+    {
+        out_->out(s, style_.plain_);
+    }
+
+    auto PseudocodeGenerator::out_var_name
+        (std::string_view const s) -> void
+    {
+        out_->out(s, style_.variable_);
     }
 
     auto PseudocodeGenerator::bin_op_to_string
@@ -1233,8 +1275,17 @@ namespace fri
 
             for (auto const& base : con.baseInitList_)
             {
+                auto const baseName = base.base_->to_string();
+
                 out_->begin_line();
-                out_->out("inicializuj predka ", style_.keyword_);
+                if (baseName.starts_with(c.name_))
+                {
+                    out_->out("inicializuj ", style_.keyword_);
+                }
+                else
+                {
+                    out_->out("inicializuj predka ", style_.keyword_);
+                }
                 base.base_->accept(*this);
                 out_->out("(");
                 this->visit_args(base.init_);
@@ -1400,15 +1451,33 @@ namespace fri
     auto PseudocodeGenerator::visit_range
         (Range&& r, OutputSep&& s) -> void
     {
-        auto const last = std::end(r);
-        auto first = std::begin(r);
+        // auto const last = std::end(r);
+        // auto first = std::begin(r);
 
-        using pointee_t = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
+        // using pointee_t = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
 
-        while (first != last)
+        // while (first != last)
+        // {
+        //     auto const& elem = *first;
+
+        //     if constexpr (std::is_pointer_v<pointee_t> or is_smart_pointer_v<pointee_t>)
+        //     {
+        //         elem->accept(*this);
+        //     }
+        //     else
+        //     {
+        //         elem.accept(*this);
+        //     }
+
+        //     ++first;
+        //     if (first != last)
+        //     {
+        //         s();
+        //     }
+        // }
+        this->visit_range(r, [this](auto const& elem)
         {
-            auto const& elem = *first;
-
+            using pointee_t = std::remove_cv_t<std::remove_reference_t<decltype(elem)>>;
             if constexpr (std::is_pointer_v<pointee_t> or is_smart_pointer_v<pointee_t>)
             {
                 elem->accept(*this);
@@ -1417,7 +1486,19 @@ namespace fri
             {
                 elem.accept(*this);
             }
+        }, s);
+    }
 
+    template<class Range, class Visitor, class OutputSep>
+    auto PseudocodeGenerator::visit_range
+        (Range&& r, Visitor&& v, OutputSep&& s) -> void
+    {
+        auto const last = std::end(r);
+        auto first = std::begin(r);
+
+        while (first != last)
+        {
+            v(*first);
             ++first;
             if (first != last)
             {
@@ -1455,5 +1536,48 @@ namespace fri
         (This const&) -> void
     {
         result_ = true;
+    }
+
+    ForVarDefVisitor::ForVarDefVisitor
+        (PseudocodeGenerator& v) :
+        real_ (&v)
+    {
+    }
+
+    auto ForVarDefVisitor::visit
+        (VarDefinition const& v) -> void
+    {
+        real_->out_var_name(v.var_.name_);
+        real_->out_plain(": ");
+        v.var_.type_->accept(*real_);
+    }
+
+    ForFromVisitor::ForFromVisitor
+        (PseudocodeGenerator& v) :
+        real_ (&v)
+    {
+    }
+
+    auto ForFromVisitor::visit
+        (VarDefinition const& b) -> void
+    {
+        if (b.var_.initializer_)
+        {
+            b.var_.initializer_->accept(*real_);
+        }
+    }
+
+    ForToVisitor::ForToVisitor
+        (PseudocodeGenerator& v) :
+        real_ (&v)
+    {
+    }
+
+    auto ForToVisitor::visit
+        (BinaryOperator const& b) -> void
+    {
+        b.rhs_->accept(*real_);
+        real_->out_plain(" - ");
+        real_->visit(IntLiteral(1));
     }
 }

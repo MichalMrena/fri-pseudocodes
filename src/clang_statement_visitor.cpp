@@ -53,13 +53,13 @@ namespace fri
         if (init)
         {
             statement_ = std::make_unique<VarDefinition>
-                ( extract_type(context_->getPrintingPolicy(), decl->getType())
+                ( extract_type(context_->getPrintingPolicy(), decl->getType(), expressioner_)
                 , decl->getName().str(), expressioner_.read_expression(init) );
         }
         else
         {
             statement_ = std::make_unique<VarDefinition>
-                ( extract_type(context_->getPrintingPolicy(), decl->getType())
+                ( extract_type(context_->getPrintingPolicy(), decl->getType(), expressioner_)
                 , decl->getName().str() );
         }
         return false;

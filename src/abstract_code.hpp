@@ -8,6 +8,8 @@
 #include <optional>
 #include <variant>
 
+#include "types.hpp"
+
 namespace fri
 {
     class CodeVisitor;
@@ -83,24 +85,33 @@ namespace fri
 
     struct TemplatedType : public CommonType<TemplatedType>
     {
-        std::unique_ptr<Type>              base_;
-        std::vector<std::unique_ptr<Type>> args_;
-        TemplatedType (IsConst, std::unique_ptr<Type>, std::vector<std::unique_ptr<Type>>);
+        using arg_var_t = std::variant<uptr<Type>, uptr<Expression>>;
+        uptr<Type>             base_;
+        std::vector<arg_var_t> args_;
+        TemplatedType (IsConst, uptr<Type>, std::vector<arg_var_t>);
         auto to_string () const -> std::string override;
     };
 
     struct Indirection : public CommonType<Indirection>
     {
-        std::unique_ptr<Type> pointee_ {};
-        Indirection (IsConst, std::unique_ptr<Type>);
+        uptr<Type> pointee_ {};
+        Indirection (IsConst, uptr<Type>);
         auto to_string () const -> std::string override;
     };
 
     struct Function : public CommonType<Function>
     {
-        std::vector<std::unique_ptr<Type>> params_;
-        std::unique_ptr<Type>              ret_;
-        Function (std::vector<std::unique_ptr<Type>>, std::unique_ptr<Type>);
+        std::vector<uptr<Type>> params_;
+        uptr<Type>              ret_;
+        Function (std::vector<uptr<Type>>, uptr<Type>);
+        auto to_string () const -> std::string override;
+    };
+
+    struct Nested : public CommonType<Nested>
+    {
+        uptr<Type>  nest_;
+        std::string name_;
+        Nested(IsConst, uptr<Type>, std::string);
         auto to_string () const -> std::string override;
     };
 
@@ -108,25 +119,25 @@ namespace fri
 
     struct VarDefCommon : public Visitable<VarDefCommon>
     {
-        std::unique_ptr<Type>       type_;
-        std::string                 name_;
-        std::unique_ptr<Expression> initializer_ {};
-        VarDefCommon(std::unique_ptr<Type>, std::string);
-        VarDefCommon(std::unique_ptr<Type>, std::string, std::unique_ptr<Expression>);
+        uptr<Type>       type_;
+        std::string      name_;
+        uptr<Expression> initializer_ {};
+        VarDefCommon(uptr<Type>, std::string);
+        VarDefCommon(uptr<Type>, std::string, uptr<Expression>);
     };
 
     struct ParamDefinition : public Visitable<ParamDefinition>
     {
         VarDefCommon var_;
-        ParamDefinition(std::unique_ptr<Type>, std::string);
-        ParamDefinition(std::unique_ptr<Type>, std::string, std::unique_ptr<Expression>);
+        ParamDefinition(uptr<Type>, std::string);
+        ParamDefinition(uptr<Type>, std::string, uptr<Expression>);
     };
 
     struct FieldDefinition : public Visitable<FieldDefinition>
     {
         VarDefCommon var_;
-        FieldDefinition(std::unique_ptr<Type>, std::string);
-        FieldDefinition(std::unique_ptr<Type>, std::string, std::unique_ptr<Expression>);
+        FieldDefinition(uptr<Type>, std::string);
+        FieldDefinition(uptr<Type>, std::string, uptr<Expression>);
     };
 
 // Expressions:
@@ -176,25 +187,25 @@ namespace fri
 
     struct BinaryOperator : public VisitableFamily<Expression, BinaryOperator>
     {
-        BinOpcode                   op_;
-        std::unique_ptr<Expression> lhs_;
-        std::unique_ptr<Expression> rhs_;
-        BinaryOperator (std::unique_ptr<Expression>, BinOpcode, std::unique_ptr<Expression>);
+        BinOpcode        op_;
+        uptr<Expression> lhs_;
+        uptr<Expression> rhs_;
+        BinaryOperator (uptr<Expression>, BinOpcode, uptr<Expression>);
     };
 
     struct UnaryOperator : public VisitableFamily<Expression, UnaryOperator>
     {
-        using arg_variant = std::variant<std::unique_ptr<Expression>, std::unique_ptr<Type>>;
+        using arg_variant = std::variant<uptr<Expression>, uptr<Type>>;
         UnOpcode    op_;
         arg_variant arg_;
-        UnaryOperator (UnOpcode, std::unique_ptr<Expression>);
-        UnaryOperator (UnOpcode, std::unique_ptr<Type>);
+        UnaryOperator (UnOpcode, uptr<Expression>);
+        UnaryOperator (UnOpcode, uptr<Type>);
     };
 
     struct Parenthesis : public VisitableFamily<Expression, Parenthesis>
     {
-        std::unique_ptr<Expression> expression_;
-        Parenthesis (std::unique_ptr<Expression>);
+        uptr<Expression> expression_;
+        Parenthesis (uptr<Expression>);
     };
 
     struct VarRef : public VisitableFamily<Expression, VarRef>
@@ -205,53 +216,53 @@ namespace fri
 
     struct MemberVarRef : public VisitableFamily<Expression, MemberVarRef>
     {
-        bool                        indirectBase_;
-        std::unique_ptr<Expression> base_;
-        std::string                 name_;
-        MemberVarRef (std::unique_ptr<Expression>, std::string);
+        bool             indirectBase_;
+        uptr<Expression> base_;
+        std::string      name_;
+        MemberVarRef (uptr<Expression>, std::string);
     };
 
     struct New : public VisitableFamily<Expression, New>
     {
-        std::unique_ptr<Type>                    type_;
-        std::vector<std::unique_ptr<Expression>> args_;
-        New (std::unique_ptr<Type>, std::vector<std::unique_ptr<Expression>>);
+        uptr<Type>                    type_;
+        std::vector<uptr<Expression>> args_;
+        New (uptr<Type>, std::vector<uptr<Expression>>);
     };
 
     struct FunctionCall : public VisitableFamily<Expression, FunctionCall>
     {
-        std::string                              name_;
-        std::vector<std::unique_ptr<Expression>> args_;
-        FunctionCall (std::string, std::vector<std::unique_ptr<Expression>>);
+        std::string                   name_;
+        std::vector<uptr<Expression>> args_;
+        FunctionCall (std::string, std::vector<uptr<Expression>>);
     };
 
     struct ConstructorCall : public VisitableFamily<Expression, ConstructorCall>
     {
-        std::unique_ptr<Type>                    type_;
-        std::vector<std::unique_ptr<Expression>> args_;
-        ConstructorCall (std::unique_ptr<Type>, std::vector<std::unique_ptr<Expression>>);
+        uptr<Type>                    type_;
+        std::vector<uptr<Expression>> args_;
+        ConstructorCall (uptr<Type>, std::vector<uptr<Expression>>);
     };
 
     struct DestructorCall : public VisitableFamily<Expression, DestructorCall>
     {
-        std::unique_ptr<Expression> ex_;
-        DestructorCall (std::unique_ptr<Expression>);
+        uptr<Expression> ex_;
+        DestructorCall (uptr<Expression>);
     };
 
     struct MemberFunctionCall : public VisitableFamily<Expression, MemberFunctionCall>
     {
-        bool                                     indirectBase_;
-        std::unique_ptr<Expression>              base_;
-        std::string                              call_;
-        std::vector<std::unique_ptr<Expression>> args_;
-        MemberFunctionCall (std::unique_ptr<Expression>, std::string, std::vector<std::unique_ptr<Expression>>);
+        bool                          indirectBase_;
+        uptr<Expression>              base_;
+        std::string                   call_;
+        std::vector<uptr<Expression>> args_;
+        MemberFunctionCall (uptr<Expression>, std::string, std::vector<uptr<Expression>>);
     };
 
     struct ExpressionCall : public VisitableFamily<Expression, ExpressionCall>
     {
-        std::unique_ptr<Expression>              ex_;
-        std::vector<std::unique_ptr<Expression>> args_;
-        ExpressionCall (std::unique_ptr<Expression>, std::vector<std::unique_ptr<Expression>>);
+        uptr<Expression>              ex_;
+        std::vector<uptr<Expression>> args_;
+        ExpressionCall (uptr<Expression>, std::vector<uptr<Expression>>);
     };
 
     struct This : public VisitableFamily<Expression, This>
@@ -260,80 +271,80 @@ namespace fri
 
     struct IfExpression : public VisitableFamily<Expression, IfExpression>
     {
-        std::unique_ptr<Expression> cond_;
-        std::unique_ptr<Expression> then_;
-        std::unique_ptr<Expression> else_;
-        IfExpression (std::unique_ptr<Expression>, std::unique_ptr<Expression>, std::unique_ptr<Expression>);
+        uptr<Expression> cond_;
+        uptr<Expression> then_;
+        uptr<Expression> else_;
+        IfExpression (uptr<Expression>, uptr<Expression>, uptr<Expression>);
     };
 
 // Statements:
 
     struct Delete : public VisitableFamily<Statement, Delete>
     {
-        std::unique_ptr<Expression> ex_;
-        Delete (std::unique_ptr<Expression>);
+        uptr<Expression> ex_;
+        Delete (uptr<Expression>);
     };
 
     struct VarDefinition : public VisitableFamily<Statement, VarDefinition>
     {
         VarDefCommon var_;
-        VarDefinition(std::unique_ptr<Type>, std::string);
-        VarDefinition(std::unique_ptr<Type>, std::string, std::unique_ptr<Expression>);
+        VarDefinition(uptr<Type>, std::string);
+        VarDefinition(uptr<Type>, std::string, uptr<Expression>);
     };
 
     struct CompoundStatement : public VisitableFamily<Statement, CompoundStatement>
     {
-        std::vector<std::unique_ptr<Statement>> statements_;
-        CompoundStatement (std::unique_ptr<Statement>);
-        CompoundStatement (std::vector<std::unique_ptr<Statement>>);
+        std::vector<uptr<Statement>> statements_;
+        CompoundStatement (uptr<Statement>);
+        CompoundStatement (std::vector<uptr<Statement>>);
     };
 
     struct Return : public VisitableFamily<Statement, Return>
     {
-        std::unique_ptr<Expression> expression_;
-        Return (std::unique_ptr<Expression>);
+        uptr<Expression> expression_;
+        Return (uptr<Expression>);
     };
 
     struct If : public VisitableFamily<Statement, If>
     {
-        std::unique_ptr<Expression> condition_;
+        uptr<Expression> condition_;
         CompoundStatement then_;
         std::optional<CompoundStatement> else_ {};
-        If (std::unique_ptr<Expression>, CompoundStatement);
-        If (std::unique_ptr<Expression>, CompoundStatement, CompoundStatement);
+        If (uptr<Expression>, CompoundStatement);
+        If (uptr<Expression>, CompoundStatement, CompoundStatement);
     };
 
     struct ExpressionStatement : public VisitableFamily<Statement, ExpressionStatement>
     {
-        std::unique_ptr<Expression> expression_;
-        ExpressionStatement (std::unique_ptr<Expression>);
+        uptr<Expression> expression_;
+        ExpressionStatement (uptr<Expression>);
     };
 
     struct ForLoop : public VisitableFamily<Statement, ForLoop>
     {
-        std::unique_ptr<Statement>  var_;
-        std::unique_ptr<Expression> cond_;
-        std::unique_ptr<Expression> inc_;
+        uptr<Statement>  var_;
+        uptr<Expression> cond_;
+        uptr<Expression> inc_;
         CompoundStatement           body_;
-        ForLoop (std::unique_ptr<Statement>, std::unique_ptr<Expression>, std::unique_ptr<Expression>, CompoundStatement);
+        ForLoop (uptr<Statement>, uptr<Expression>, uptr<Expression>, CompoundStatement);
     };
 
     struct CondLoop
     {
-        std::unique_ptr<Expression> condition_;
+        uptr<Expression> condition_;
         CompoundStatement body_;
     };
 
     struct WhileLoop : public VisitableFamily<Statement, WhileLoop>
     {
         CondLoop loop_;
-        WhileLoop (std::unique_ptr<Expression>, CompoundStatement);
+        WhileLoop (uptr<Expression>, CompoundStatement);
     };
 
     struct DoWhileLoop : public VisitableFamily<Statement, DoWhileLoop>
     {
         CondLoop loop_;
-        DoWhileLoop (std::unique_ptr<Expression>, CompoundStatement);
+        DoWhileLoop (uptr<Expression>, CompoundStatement);
     };
 
     struct Throw : public VisitableFamily<Statement, Throw>
@@ -353,17 +364,17 @@ namespace fri
 
     struct BaseInitPair
     {
-        std::unique_ptr<Type>                    base_;
-        std::vector<std::unique_ptr<Expression>> init_;
-        BaseInitPair( std::unique_ptr<Type>
-                    , std::vector<std::unique_ptr<Expression>> );
+        uptr<Type>                    base_;
+        std::vector<uptr<Expression>> init_;
+        BaseInitPair( uptr<Type>
+                    , std::vector<uptr<Expression>> );
     };
 
     struct MemberInitPair
     {
-        std::string                              name_;
-        std::vector<std::unique_ptr<Expression>> init_;
-        MemberInitPair(std::string, std::vector<std::unique_ptr<Expression>>);
+        std::string                   name_;
+        std::vector<uptr<Expression>> init_;
+        MemberInitPair(std::string, std::vector<uptr<Expression>>);
     };
 
     struct Constructor : public Visitable<Constructor>
@@ -387,11 +398,11 @@ namespace fri
     struct Method : public Visitable<Method>
     {
         std::string                      name_;
-        std::unique_ptr<Type>            retType_;
+        uptr<Type>            retType_;
         std::vector<ParamDefinition>     params_;
         std::optional<CompoundStatement> body_ {};
         Method( std::string
-              , std::unique_ptr<Type>
+              , uptr<Type>
               , std::vector<ParamDefinition>
               , std::optional<CompoundStatement> );
     };
@@ -405,7 +416,7 @@ namespace fri
         std::optional<Destructor>          destructor_;
         std::vector<Method>                methods_;
         std::vector<FieldDefinition>       fields_;
-        std::vector<std::unique_ptr<Type>> bases_;
+        std::vector<uptr<Type>> bases_;
 
         Class (std::string qualName);
         auto name () const -> std::string;
@@ -420,11 +431,11 @@ namespace fri
     class TranslationUnit
     {
     public:
-        TranslationUnit (std::vector<std::unique_ptr<Class>> classes);
-        auto get_classes () const -> std::vector<std::unique_ptr<Class>> const&;
+        TranslationUnit (std::vector<uptr<Class>> classes);
+        auto get_classes () const -> std::vector<uptr<Class>> const&;
 
     private:
-        std::vector<std::unique_ptr<Class>> classes_;
+        std::vector<uptr<Class>> classes_;
     };
 
     /**
@@ -460,6 +471,7 @@ namespace fri
         virtual auto visit (TemplatedType const&)        -> void = 0;
         virtual auto visit (Indirection const&)          -> void = 0;
         virtual auto visit (Function const&)             -> void = 0;
+        virtual auto visit (Nested const&)               -> void = 0;
 
         virtual auto visit (Class const&)                -> void = 0;
         virtual auto visit (Method const&)               -> void = 0;

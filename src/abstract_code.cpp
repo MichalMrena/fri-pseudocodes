@@ -58,8 +58,8 @@ namespace fri
 
     TemplatedType::TemplatedType
         ( IsConst const is
-        , std::unique_ptr<Type>              b
-        , std::vector<std::unique_ptr<Type>> as ) :
+        , uptr<Type>             b
+        , std::vector<arg_var_t> as ) :
         CommonType<TemplatedType> (is),
         base_ (std::move(b)),
         args_ (std::move(as))
@@ -78,7 +78,7 @@ namespace fri
         auto it = std::begin(args_);
         while (it != end)
         {
-            ret += (*it)->to_string();
+            ret += "<template arg>";
             ++it;
             if (it != end)
             {
@@ -93,7 +93,7 @@ namespace fri
     }
 
     Indirection::Indirection
-        (IsConst const is, std::unique_ptr<Type> pointee) :
+        (IsConst const is, uptr<Type> pointee) :
         CommonType<Indirection> (is),
         pointee_ (std::move(pointee))
     {
@@ -106,8 +106,8 @@ namespace fri
     }
 
     Function::Function
-        ( std::vector<std::unique_ptr<Type>> ps
-        , std::unique_ptr<Type>              r ) :
+        ( std::vector<uptr<Type>> ps
+        , uptr<Type>              r ) :
         CommonType<Function> (IsConst(false)),
         params_ (std::move(ps)),
         ret_    (std::move(r))
@@ -134,15 +134,33 @@ namespace fri
         return ret;
     }
 
+    Nested::Nested
+        ( IsConst     c
+        , uptr<Type>  t
+        , std::string n ) :
+        CommonType<Nested> (c),
+        nest_ (std::move(t)),
+        name_ (std::move(n))
+    {
+    }
+
+    auto Nested::to_string
+        () const -> std::string
+    {
+        auto ret = nest_->to_string();
+        (ret += ".") += name_;
+        return ret;
+    }
+
     VarDefCommon::VarDefCommon
-        (std::unique_ptr<Type> t, std::string n) :
+        (uptr<Type> t, std::string n) :
         type_        (std::move(t)),
         name_        (std::move(n))
     {
     }
 
     VarDefCommon::VarDefCommon
-        (std::unique_ptr<Type> t, std::string n, std::unique_ptr<Expression> i) :
+        (uptr<Type> t, std::string n, uptr<Expression> i) :
         type_        (std::move(t)),
         name_        (std::move(n)),
         initializer_ (std::move(i))
@@ -150,37 +168,37 @@ namespace fri
     }
 
     ParamDefinition::ParamDefinition
-        (std::unique_ptr<Type> t, std::string n) :
+        (uptr<Type> t, std::string n) :
         var_ (std::move(t), std::move(n))
     {
     }
 
     ParamDefinition::ParamDefinition
-        (std::unique_ptr<Type> t, std::string n, std::unique_ptr<Expression> i) :
+        (uptr<Type> t, std::string n, uptr<Expression> i) :
         var_ (std::move(t), std::move(n), std::move(i))
     {
     }
 
     FieldDefinition::FieldDefinition
-        (std::unique_ptr<Type> t, std::string n) :
+        (uptr<Type> t, std::string n) :
         var_ (std::move(t), std::move(n))
     {
     }
 
     FieldDefinition::FieldDefinition
-        (std::unique_ptr<Type> t, std::string n, std::unique_ptr<Expression> i) :
+        (uptr<Type> t, std::string n, uptr<Expression> i) :
         var_ (std::move(t), std::move(n), std::move(i))
     {
     }
 
     VarDefinition::VarDefinition
-        (std::unique_ptr<Type> t, std::string n) :
+        (uptr<Type> t, std::string n) :
         var_ (std::move(t), std::move(n))
     {
     }
 
     VarDefinition::VarDefinition
-        (std::unique_ptr<Type> t, std::string n, std::unique_ptr<Expression> i) :
+        (uptr<Type> t, std::string n, uptr<Expression> i) :
         var_ (std::move(t), std::move(n), std::move(i))
     {
     }
@@ -210,9 +228,9 @@ namespace fri
     }
 
     BinaryOperator::BinaryOperator
-        ( std::unique_ptr<Expression> lhs
+        ( uptr<Expression> lhs
         , BinOpcode                   op
-        , std::unique_ptr<Expression> rhs ) :
+        , uptr<Expression> rhs ) :
         op_  (op),
         lhs_ (std::move(lhs)),
         rhs_ (std::move(rhs))
@@ -221,7 +239,7 @@ namespace fri
 
     UnaryOperator::UnaryOperator
         ( UnOpcode                    o
-        , std::unique_ptr<Expression> a) :
+        , uptr<Expression> a) :
         op_  (o),
         arg_ (std::move(a))
     {
@@ -229,14 +247,14 @@ namespace fri
 
     UnaryOperator::UnaryOperator
         ( UnOpcode              o
-        , std::unique_ptr<Type> a ) :
+        , uptr<Type> a ) :
         op_  (o),
         arg_ (std::move(a))
     {
     }
 
     Parenthesis::Parenthesis
-        (std::unique_ptr<Expression> expression) :
+        (uptr<Expression> expression) :
         expression_ (std::move(expression))
     {
     }
@@ -248,7 +266,7 @@ namespace fri
     }
 
     MemberVarRef::MemberVarRef
-        ( std::unique_ptr<Expression> b
+        ( uptr<Expression> b
         , std::string n ) :
         base_ (std::move(b)),
         name_ (std::move(n))
@@ -256,8 +274,8 @@ namespace fri
     }
 
     New::New
-        ( std::unique_ptr<Type> t
-        , std::vector<std::unique_ptr<Expression>> as ) :
+        ( uptr<Type> t
+        , std::vector<uptr<Expression>> as ) :
         type_ (std::move(t)),
         args_ (std::move(as))
     {
@@ -265,30 +283,30 @@ namespace fri
 
     FunctionCall::FunctionCall
         ( std::string n
-        , std::vector<std::unique_ptr<Expression>> as ) :
+        , std::vector<uptr<Expression>> as ) :
         name_ (std::move(n)),
         args_ (std::move(as))
     {
     }
 
     ConstructorCall::ConstructorCall
-        ( std::unique_ptr<Type>                    t
-        , std::vector<std::unique_ptr<Expression>> as ) :
+        ( uptr<Type>                    t
+        , std::vector<uptr<Expression>> as ) :
         type_ (std::move(t)),
         args_ (std::move(as))
     {
     }
 
     DestructorCall::DestructorCall
-        (std::unique_ptr<Expression> e) :
+        (uptr<Expression> e) :
         ex_ (std::move(e))
     {
     }
 
     MemberFunctionCall::MemberFunctionCall
-        ( std::unique_ptr<Expression>              e
+        ( uptr<Expression>              e
         , std::string                              c
-        , std::vector<std::unique_ptr<Expression>> as ) :
+        , std::vector<uptr<Expression>> as ) :
         base_ (std::move(e)),
         call_ (std::move(c)),
         args_ (std::move(as))
@@ -296,39 +314,39 @@ namespace fri
     }
 
     ExpressionCall::ExpressionCall
-        ( std::unique_ptr<Expression>              e
-        , std::vector<std::unique_ptr<Expression>> as ) :
+        ( uptr<Expression>              e
+        , std::vector<uptr<Expression>> as ) :
         ex_   (std::move(e)),
         args_ (std::move(as))
     {
     }
 
     Delete::Delete
-        (std::unique_ptr<Expression> ex) :
+        (uptr<Expression> ex) :
         ex_ (std::move(ex))
     {
     }
 
     CompoundStatement::CompoundStatement
-        (std::unique_ptr<Statement> s)
+        (uptr<Statement> s)
     {
         statements_.emplace_back(std::move(s));
     }
 
     CompoundStatement::CompoundStatement
-        (std::vector<std::unique_ptr<Statement>> ss) :
+        (std::vector<uptr<Statement>> ss) :
         statements_ (std::move(ss))
     {
     }
 
     Return::Return
-        (std::unique_ptr<Expression> e) :
+        (uptr<Expression> e) :
         expression_ (std::move(e))
     {
     }
 
     If::If
-        ( std::unique_ptr<Expression> c
+        ( uptr<Expression> c
         , CompoundStatement t ) :
         condition_ (std::move(c)),
         then_      (std::move(t))
@@ -336,7 +354,7 @@ namespace fri
     }
 
     If::If
-        ( std::unique_ptr<Expression> c
+        ( uptr<Expression> c
         , CompoundStatement t
         , CompoundStatement e) :
         condition_ (std::move(c)),
@@ -346,9 +364,9 @@ namespace fri
     }
 
     IfExpression::IfExpression
-        ( std::unique_ptr<Expression> c
-        , std::unique_ptr<Expression> t
-        , std::unique_ptr<Expression> e ) :
+        ( uptr<Expression> c
+        , uptr<Expression> t
+        , uptr<Expression> e ) :
         cond_ (std::move(c)),
         then_ (std::move(t)),
         else_ (std::move(e))
@@ -356,15 +374,15 @@ namespace fri
     }
 
     ExpressionStatement::ExpressionStatement
-        (std::unique_ptr<Expression> expression) :
+        (uptr<Expression> expression) :
         expression_ (std::move(expression))
     {
     }
 
     ForLoop::ForLoop
-        ( std::unique_ptr<Statement>  var
-        , std::unique_ptr<Expression> cond
-        , std::unique_ptr<Expression> inc
+        ( uptr<Statement>  var
+        , uptr<Expression> cond
+        , uptr<Expression> inc
         , CompoundStatement           b ) :
         var_  (std::move(var)),
         cond_ (std::move(cond)),
@@ -374,14 +392,14 @@ namespace fri
     }
 
     WhileLoop::WhileLoop
-        ( std::unique_ptr<Expression> c
+        ( uptr<Expression> c
         , CompoundStatement           b ) :
         loop_ {std::move(c), std::move(b)}
     {
     }
 
     DoWhileLoop::DoWhileLoop
-        ( std::unique_ptr<Expression> c
+        ( uptr<Expression> c
         , CompoundStatement           b ) :
         loop_ {std::move(c), std::move(b)}
     {
@@ -396,8 +414,8 @@ namespace fri
     }
 
     BaseInitPair::BaseInitPair
-        ( std::unique_ptr<Type>                    t
-        , std::vector<std::unique_ptr<Expression>> es ) :
+        ( uptr<Type>                    t
+        , std::vector<uptr<Expression>> es ) :
         base_ (std::move(t)),
         init_ (std::move(es))
     {
@@ -405,7 +423,7 @@ namespace fri
 
     MemberInitPair::MemberInitPair
         ( std::string                              n
-        , std::vector<std::unique_ptr<Expression>> es ) :
+        , std::vector<uptr<Expression>> es ) :
         name_ (std::move(n)),
         init_ (std::move(es))
     {
@@ -431,7 +449,7 @@ namespace fri
 
     Method::Method
         ( std::string n
-        , std::unique_ptr<Type> ret
+        , uptr<Type> ret
         , std::vector<ParamDefinition> ps
         , std::optional<CompoundStatement> b ) :
         name_    (std::move(n)),
@@ -485,13 +503,13 @@ namespace fri
     }
 
     TranslationUnit::TranslationUnit
-        (std::vector<std::unique_ptr<Class>> classes) :
+        (std::vector<uptr<Class>> classes) :
         classes_ (std::move(classes))
     {
     }
 
     auto TranslationUnit::get_classes
-        () const -> std::vector<std::unique_ptr<Class>> const&
+        () const -> std::vector<uptr<Class>> const&
     {
         return classes_;
     }

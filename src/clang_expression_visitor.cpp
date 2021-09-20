@@ -14,23 +14,37 @@ namespace fri
     }
 
     auto ExpressionVisitor::read_expression
-        (clang::Stmt* const s) -> std::unique_ptr<Expression>
+        (clang::Stmt* const s) -> uptr<Expression>
     {
         this->TraverseStmt(s);
-        return expression_ ? std::move(expression_)
-                           : std::make_unique<StringLiteral>("<unknown expression>");
+        if (expression_)
+        {
+            return std::move(expression_);
+        }
+        else if (not expressions_.empty()) // Might have been parenlist
+        {
+            // TODO VarDef by mala bať vector init expressionov, lebo to môže byť aj paren list
+            auto ret = std::move(expressions_.front());
+            expressions_.clear();
+            return ret;
+        }
+        else
+        {
+            s->dump();
+            return std::make_unique<StringLiteral>("<unknown expression>");
+        }
     }
 
     auto ExpressionVisitor::read_expressions
-        (clang::Stmt* const s) -> std::vector<std::unique_ptr<Expression>>
+        (clang::Stmt* const s) -> std::vector<uptr<Expression>>
     {
-        expressions_ = std::vector<std::unique_ptr<Expression>>();
+        expressions_ = std::vector<uptr<Expression>>();
         this->TraverseStmt(s);
         if (expression_)
         {
             expressions_.emplace_back(std::move(expression_));
         }
-        return std::vector<std::unique_ptr<Expression>>(std::move(expressions_));
+        return std::vector<uptr<Expression>>(std::move(expressions_));
     }
 
     auto ExpressionVisitor::VisitIntegerLiteral
@@ -121,7 +135,7 @@ namespace fri
         auto const tp = n->getType().getTypePtr();
         if (tp->isPointerType())
         {
-            auto argsVec    = std::vector<std::unique_ptr<Expression>>();
+            auto argsVec    = std::vector<uptr<Expression>>();
             auto const pt   = tp->getAs<clang::PointerType>()->getPointeeType();
 
             for (auto const arg : n->children())
@@ -134,7 +148,7 @@ namespace fri
                     }
                 }
             }
-            expression_ = std::make_unique<New>(extract_type(context_->getPrintingPolicy(), pt), std::move(argsVec));
+            expression_ = std::make_unique<New>(extract_type(context_->getPrintingPolicy(), pt, *this), std::move(argsVec));
         }
         // TODO placement new args
 
@@ -166,7 +180,7 @@ namespace fri
         if (uo->isArgumentType())
         {
             // TODO Zatiaľ neviem ako zistiť, že je to naozaj sizeof..., ale iné asi nepoužívame
-            expression_ = std::make_unique<UnaryOperator>(UnOpcode::Sizeof, extract_type(context_->getPrintingPolicy(), uo->getArgumentType()));
+            expression_ = std::make_unique<UnaryOperator>(UnOpcode::Sizeof, extract_type(context_->getPrintingPolicy(), uo->getArgumentType(), *this));
         }
         else
         {
@@ -198,7 +212,7 @@ namespace fri
         // TODO to private static method
         auto const make_args = [this](auto&& as)
         {
-            auto args = std::vector<std::unique_ptr<Expression>>();
+            auto args = std::vector<uptr<Expression>>();
             for (auto const arg : as)
             {
                 args.emplace_back(this->read_expression(arg));
@@ -254,6 +268,32 @@ namespace fri
             {
                 expression_ = std::make_unique<ExpressionCall>(this->read_expression(*fc), make_args(c->arguments()));
             }
+            else if (auto const ic = clang::dyn_cast<clang::ImplicitCastExpr>(*fc))
+            {
+                auto const subExpr = ic->getSubExpr();
+                if (subExpr)
+                {
+                    auto name = [subExpr]()
+                    {
+                        if (auto const dre = clang::dyn_cast<clang::DeclRefExpr>(subExpr))
+                        {
+                            return dre->getNameInfo().getName().getAsString();
+                        }
+                        else
+                        {
+                            return std::string("<unknown name>");
+                        }
+                    }();
+                    if (auto const f = clang::dyn_cast<clang::FunctionProtoType>(subExpr->getType().getTypePtr()))
+                    {
+                        expression_ = std::make_unique<FunctionCall>(std::move(name), make_args(c->arguments()));
+                    }
+                }
+                else
+                {
+                    expression_ = std::make_unique<FunctionCall>("<unknown call type>", make_args(c->arguments()));
+                }
+            }
             else
             {
                 expression_ = std::make_unique<FunctionCall>("<unknown call type>", make_args(c->arguments()));
@@ -277,7 +317,7 @@ namespace fri
     {
         auto const make_args = [this](auto&& as)
         {
-            auto args = std::vector<std::unique_ptr<Expression>>();
+            auto args = std::vector<uptr<Expression>>();
             for (auto const arg : as)
             {
                 args.emplace_back(this->read_expression(arg));
@@ -285,7 +325,7 @@ namespace fri
             return args;
         };
  
-        expression_ = std::make_unique<ConstructorCall>( extract_type(context_->getPrintingPolicy(), c->getType())
+        expression_ = std::make_unique<ConstructorCall>( extract_type(context_->getPrintingPolicy(), c->getType(), *this)
                                                        , make_args(c->arguments()) );
         return false;
     }
@@ -300,7 +340,7 @@ namespace fri
             auto params = std::vector<ParamDefinition>();
             for (auto const p : l->getCallOperator()->parameters())
             {
-                params.emplace_back(extract_type(context_->getPrintingPolicy(), p->getType()), p->getNameAsString());
+                params.emplace_back(extract_type(context_->getPrintingPolicy(), p->getType(), *this), p->getNameAsString());
             }
             expression_ = std::make_unique<Lambda>( std::move(params)
                                                   , std::move(*body) );

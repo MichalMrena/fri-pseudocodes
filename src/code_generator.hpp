@@ -270,6 +270,7 @@ namespace fri
         auto visit (TemplatedType const&)        -> void override;
         auto visit (Indirection const&)          -> void override;
         auto visit (Function const&)             -> void override;
+        auto visit (Nested const&)               -> void override;
 
         auto visit (Class const&)                -> void override;
         auto visit (Method const&)               -> void override;
@@ -286,6 +287,9 @@ namespace fri
         auto visit (If const&)                   -> void override;
         auto visit (Delete const&)               -> void override;
         auto visit (Throw const&)                -> void override;
+
+        auto out_plain    (std::string_view)     -> void;
+        auto out_var_name (std::string_view)     -> void;
 
     private:
         static auto bin_op_to_string   (BinOpcode) -> std::string;
@@ -323,6 +327,9 @@ namespace fri
 
         template<class Range, class OutputSep>
         auto visit_range (Range&&, OutputSep&&) -> void;
+
+        template<class Range, class Visitor, class OutputSep>
+        auto visit_range (Range&&, Visitor&&, OutputSep&&) -> void;
 
         /**
          *  Temporarly swaps @c out_ for dummy, executes @c LineOut arg
@@ -368,6 +375,7 @@ namespace fri
         auto visit (TemplatedType const&)        -> void override {};
         auto visit (Indirection const&)          -> void override {};
         auto visit (Function const&)             -> void override {};
+        auto visit (Nested const&)               -> void override {};
 
         auto visit (Class const&)                -> void override {};
         auto visit (Method const&)               -> void override {};
@@ -404,7 +412,7 @@ namespace fri
     };
 
     /**
-     *  @brief Check if given expression is this pointer.
+     *  @brief Checks if given expression is this pointer.
      */
     struct IsThisVisitor : public IsCheckVisitorBase
     {
@@ -412,11 +420,41 @@ namespace fri
     };
 
     /**
-     *  @brief Check
+     *  @brief Checks given type is indirection.
      */
     struct IsIndirectionVisitor : public IsCheckVisitorBase
     {
         auto visit (Indirection const&) -> void override;
+    };
+
+    /**
+     *  @brief Visits variable definition or does nothing.
+     */
+    struct ForVarDefVisitor : public CodeVisitorAdapter
+    {
+        PseudocodeGenerator* real_;
+        ForVarDefVisitor(PseudocodeGenerator&);
+        auto visit (VarDefinition const&) -> void override;
+    };
+
+    /**
+     *  @brief Visits for loop condition.
+     */
+    struct ForFromVisitor : public CodeVisitorAdapter
+    {
+        PseudocodeGenerator* real_;
+        ForFromVisitor(PseudocodeGenerator&);
+        auto visit (VarDefinition const&) -> void override;
+    };
+
+    /**
+     *  @brief Visits for loop condition.
+     */
+    struct ForToVisitor : public CodeVisitorAdapter
+    {
+        PseudocodeGenerator* real_;
+        ForToVisitor(PseudocodeGenerator&);
+        auto visit (BinaryOperator const&) -> void override;
     };
 }
 

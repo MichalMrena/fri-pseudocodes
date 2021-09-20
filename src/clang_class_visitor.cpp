@@ -56,14 +56,14 @@ namespace fri
             // {
             //     c.bases_.emplace_back(&this->get_class(tt->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString()));
             // }
-            c.bases_.emplace_back(extract_type(context_->getPrintingPolicy(), bt));
+            c.bases_.emplace_back(extract_type(context_->getPrintingPolicy(), bt, expressioner_));
         }
 
         // Read all member variables.
         for (auto const field : classDecl->fields())
         {
             auto const init = field->getInClassInitializer();
-            auto type = extract_type(context_->getPrintingPolicy(), field->getType());
+            auto type = extract_type(context_->getPrintingPolicy(), field->getType(), expressioner_);
             if (init)
             {
                 c.fields_.emplace_back( std::move(type)
@@ -124,7 +124,7 @@ namespace fri
                 {
                     auto const param = methodPtr->getParamDecl(i);
                     // param->getInit(); // TODO
-                    ps.emplace_back(extract_type(context_->getPrintingPolicy(), param->getType()), param->getNameAsString());
+                    ps.emplace_back(extract_type(context_->getPrintingPolicy(), param->getType(), expressioner_), param->getNameAsString());
                 }
                 return ps;
             }();
@@ -165,7 +165,7 @@ namespace fri
             }
 
             // Normal method.
-            auto retType = extract_type(context_->getPrintingPolicy(), methodPtr->getReturnType());
+            auto retType = extract_type(context_->getPrintingPolicy(), methodPtr->getReturnType(), expressioner_);
             auto name = methodPtr->getNameAsString();
             c.methods_.emplace_back(std::move(name), std::move(retType), std::move(params), std::move(methodBody));
         }
@@ -178,18 +178,19 @@ namespace fri
     {
         if (auto icn = clang::dyn_cast<clang::InjectedClassNameType>(t))
         {
-            return get_base_name(icn->getInjectedTST());
+            return this->get_base_name(icn->getInjectedTST());
         }
         else if (auto tst = clang::dyn_cast<clang::TemplateSpecializationType>(t))
         {
+            using variant_t = TemplatedType::arg_var_t;
             auto temDecl = tst->getTemplateName().getAsTemplateDecl();
             auto name = temDecl ? temDecl->getNameAsString() : "<some template>";
-            auto args = std::vector<std::unique_ptr<Type>>();
+            auto args = std::vector<variant_t>();
             auto const argc = tst->getNumArgs();
             for (auto i = 0u; i < argc; ++i)
             {
                 auto const arg = tst->getArg(i);
-                args.emplace_back(extract_type(context_->getPrintingPolicy(), arg.getAsType()));
+                args.emplace_back(extract_type(context_->getPrintingPolicy(), arg.getAsType(), expressioner_));
             }
             return std::make_unique<TemplatedType>( IsConst(false)
                                                   , std::make_unique<CustomType>(IsConst(false), name)

@@ -1,6 +1,7 @@
 #ifndef FRI_CLANG_EXPRESSION_VISITOR_HPP
 #define FRI_CLANG_EXPRESSION_VISITOR_HPP
 
+#include "types.hpp"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "abstract_code.hpp"
 #include <memory>
@@ -14,8 +15,8 @@ namespace fri
     public:
         ExpressionVisitor (StatementVisitor&, clang::ASTContext&);
 
-        auto read_expression  (clang::Stmt*) -> std::unique_ptr<Expression>;
-        auto read_expressions (clang::Stmt*) -> std::vector<std::unique_ptr<Expression>>;
+        auto read_expression  (clang::Stmt*) -> uptr<Expression>;
+        auto read_expressions (clang::Stmt*) -> std::vector<uptr<Expression>>;
 
         auto VisitIntegerLiteral              (clang::IntegerLiteral*)              -> bool;
         auto VisitFloatingLiteral             (clang::FloatingLiteral*)             -> bool;
@@ -39,8 +40,8 @@ namespace fri
         auto VisitLambdaExpr                  (clang::LambdaExpr*)                  -> bool;
 
     private:
-        std::unique_ptr<Expression>              expression_;
-        std::vector<std::unique_ptr<Expression>> expressions_;
+        uptr<Expression>              expression_;
+        std::vector<uptr<Expression>> expressions_;
         StatementVisitor*                        statementer_;
         clang::ASTContext*                       context_;
     };

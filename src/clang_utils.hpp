@@ -10,10 +10,16 @@
 #include <memory>
 
 #include "abstract_code.hpp"
+#include "types.hpp"
+
 
 namespace fri
 {
-    auto extract_type        (clang::PrintingPolicy const&, clang::QualType) -> std::unique_ptr<Type>;
+    class ExpressionVisitor;
+
+    auto extract_type        ( clang::PrintingPolicy const&
+                             , clang::QualType
+                             , ExpressionVisitor& ) -> uptr<Type>;
     auto switch_bin_operator (clang::BinaryOperatorKind) -> BinOpcode;
     auto switch_un_operator  (clang::UnaryOperatorKind)  -> UnOpcode;
 }
