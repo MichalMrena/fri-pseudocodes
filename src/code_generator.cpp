@@ -578,38 +578,34 @@ namespace fri
     auto PseudocodeGenerator::visit
         (TemplatedType const& t) -> void
     {
-        t.base_->accept(*this);
-        out_->out("<");
-
-        this->visit_range(t.args_,
-            [this](auto const& var)
-            {
-                std::visit([this](auto const& p)
+        auto const out_args = [this, &t]()
+        {
+            this->visit_range(t.args_,
+                [this](auto const& var)
                 {
-                    p->accept(*this);
-                }, var);
-            },
-            [this]()
-            {
-                out_->out(", ");
-            });
+                    std::visit([this](auto const& p)
+                    {
+                        p->accept(*this);
+                    }, var);
+                },
+                // TODO out comma member lambda
+                [this]()
+                {
+                    out_->out(", ");
+                });
+        };
 
-        // auto const end = std::end(t.args_);
-        // auto it = std::begin(t.args_);
-        // while (it != end)
-        // {
-        //     std::visit([this](auto const& p)
-        //     {
-        //         p->accept(*this);
-        //     }, *it);
-
-        //     ++it;
-        //     if (it != end)
-        //     {
-        //         out_->out(", ");
-        //     }
-        // }
-        out_->out(">");
+        if (t.to_string().starts_with("function"))
+        {
+            out_args();
+        }
+        else
+        {
+            t.base_->accept(*this);
+            out_->out("<");
+            out_args();
+            out_->out(">");
+        }
     }
 
     auto PseudocodeGenerator::visit
@@ -631,12 +627,13 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Function const& f) -> void
     {
+        out_->out("λ", style_.keyword_);
         out_->out("(");
         this->visit_range(f.params_, [this]()
         {
             out_->out(", ");
         });
-        out_->out(") -> ");
+        out_->out(") → ");
         f.ret_->accept(*this);
     }
 
