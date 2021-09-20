@@ -126,6 +126,11 @@ namespace fri
          *  @brief Current state of indentation.
          */
         virtual auto current_indent () const -> IndentState = 0;
+
+        /**
+         *  @brief Ends the current region e.g. page.
+         */
+        virtual auto end_region () -> void = 0;
     };
 
     /**
@@ -168,6 +173,8 @@ namespace fri
         auto out (std::string_view) -> ConsoleCodePrinter& override;
         auto out (std::string_view, TextStyle const&) -> ConsoleCodePrinter& override;
 
+        auto end_region () -> void override;
+
     private:
         using base = CommonCodePrinter;
 
@@ -191,6 +198,8 @@ namespace fri
 
         auto out (std::string_view) -> RtfCodePrinter& override;
         auto out (std::string_view, TextStyle const&) -> RtfCodePrinter& override;
+
+        auto end_region () -> void override;
 
     private:
         using base = CommonCodePrinter;
@@ -223,6 +232,8 @@ namespace fri
         auto out (std::string_view) -> DummyCodePrinter& override;
         auto out (std::string_view, TextStyle const&) -> DummyCodePrinter& override;
 
+        auto end_region () -> void override;
+
         auto get_column () const -> std::size_t;
 
     private:
@@ -232,6 +243,25 @@ namespace fri
         std::size_t currentColumn_ {0};
     };
 
+    /**
+     *  @brief Decorates code priter with line numbering.
+     */
+    class NumberedCodePrinter : public ICodePrinter
+    {
+    public:
+        NumberedCodePrinter(ICodePrinter&);
+
+    private:
+        ICodePrinter* decoree_;
+        std::size_t   currentNum_;
+    };
+
+    // TODO use
+    // struct IsInline
+    // {
+    //     bool is_;
+    // };
+    // instead of:
     enum class IsInline
     {
         Inline, NoInline

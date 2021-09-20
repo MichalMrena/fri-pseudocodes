@@ -144,6 +144,12 @@ namespace fri
         return *this;
     }
 
+    auto ConsoleCodePrinter::end_region
+        () -> void
+    {
+        this->blank_line();
+    }
+
     auto ConsoleCodePrinter::set_color
         (Color const& c) -> void
     {
@@ -251,6 +257,12 @@ namespace fri
         this->end_style(st.style_);
         this->end_color();
         return *this;
+    }
+
+    auto RtfCodePrinter::end_region
+        () -> void
+    {
+        *ofst_ << R"(\page)" << '\n';
     }
 
     auto RtfCodePrinter::begin_color
@@ -386,6 +398,12 @@ namespace fri
     {
         this->out(s);
         return *this;
+    }
+
+    auto DummyCodePrinter::end_region
+        () -> void
+    {
+        this->blank_line();
     }
 
     auto DummyCodePrinter::get_column
@@ -727,36 +745,23 @@ namespace fri
             out_->dec_indent();
         }
 
+        // Begin class member definitions / declarations.
         out_->out(" {");
         out_->end_line();
         out_->inc_indent();
 
         // Visit constructor declarations.
-        auto const constructorsEnd = std::end(c.constructors_);
-        auto constructorsIt = std::begin(c.constructors_);
-        while (constructorsIt != constructorsEnd)
+        for (auto const& con : c.constructors_)
         {
-            this->visit_decl(c, *constructorsIt, IsInline::Inline);
-            ++constructorsIt;
-            out_->blank_line();
+            this->visit_decl(c, con, IsInline::Inline);
+            out_->end_line();
         }
 
         // Visit method declarations.
-        auto const methodsEnd = std::end(c.methods_);
-        auto methodsIt = std::begin(c.methods_);
-        while (methodsIt != methodsEnd)
+        for (auto const& method : c.methods_)
         {
-            this->visit_decl(c, *methodsIt, IsInline::Inline);
-            ++methodsIt;
-
-            if (methodsIt != methodsEnd)
-            {
-                out_->blank_line();
-            }
-            else if (not c.fields_.empty())
-            {
-                out_->blank_line();
-            }
+            this->visit_decl(c, method, IsInline::Inline);
+            out_->end_line();
         }
 
         // Visit fields.
@@ -765,17 +770,12 @@ namespace fri
             f.accept(*this);
         }
 
-        if (c.fields_.empty())
-        {
-            out_->end_line();
-        }
-
-        // Class end.
+        // Class declaration end.
         out_->dec_indent();
         out_->begin_line();
         out_->out("}");
         out_->end_line();
-        out_->end_line();
+        out_->end_region();
 
         // Visit constructor definitions.
         for (auto const& constr : c.constructors_)
@@ -783,22 +783,18 @@ namespace fri
             this->visit_def(c, constr);
         }
 
-        // Visit method definitions.
-        methodsIt = std::begin(c.methods_);
-        while (methodsIt != methodsEnd)
+        // Visit destructor.
+        if (c.destructor_)
         {
-            this->visit_def(c, *methodsIt);
-            ++methodsIt;
-
-            if (methodsIt != methodsEnd)
-            {
-                out_->blank_line();
-            }
-            else if (not c.fields_.empty())
-            {
-                out_->blank_line();
-            }
+            this->visit_def(c, *c.destructor_);
         }
+
+        // Visit method definitions.
+        for (auto const& method : c.methods_)
+        {
+            this->visit_def(c, method);
+        }
+        out_->end_region();
     }
 
     auto PseudocodeGenerator::visit
@@ -1252,6 +1248,7 @@ namespace fri
             m.body_->accept(*this);
         }
         out_->end_line();
+        out_->blank_line();
     }
 
     auto PseudocodeGenerator::visit_def
@@ -1312,12 +1309,8 @@ namespace fri
             out_->begin_line();
             out_->out("}");
         }
-
         out_->end_line();
-        if (not c.methods_.empty() or c.destructor_.has_value())
-        {
-            out_->blank_line();
-        }
+        out_->blank_line();
     }
 
     auto PseudocodeGenerator::visit_def
@@ -1336,10 +1329,7 @@ namespace fri
             d.body_->accept(*this);
         }
         out_->end_line();
-        if (not c.methods_.empty())
-        {
-            out_->blank_line();
-        }
+        out_->blank_line();
     }
 
     auto PseudocodeGenerator::visit_class_name
@@ -1448,30 +1438,6 @@ namespace fri
     auto PseudocodeGenerator::visit_range
         (Range&& r, OutputSep&& s) -> void
     {
-        // auto const last = std::end(r);
-        // auto first = std::begin(r);
-
-        // using pointee_t = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
-
-        // while (first != last)
-        // {
-        //     auto const& elem = *first;
-
-        //     if constexpr (std::is_pointer_v<pointee_t> or is_smart_pointer_v<pointee_t>)
-        //     {
-        //         elem->accept(*this);
-        //     }
-        //     else
-        //     {
-        //         elem.accept(*this);
-        //     }
-
-        //     ++first;
-        //     if (first != last)
-        //     {
-        //         s();
-        //     }
-        // }
         this->visit_range(r, [this](auto const& elem)
         {
             using pointee_t = std::remove_cv_t<std::remove_reference_t<decltype(elem)>>;
