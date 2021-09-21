@@ -41,7 +41,8 @@ namespace
             , .primType_       = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
             , .stringLiteral_  = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal}
             , .valLiteral_     = fri::TextStyle {fri::Color {255, 0,   255}, fri::FontStyle::Normal}
-            , .numLiteral_     = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal} };
+            , .numLiteral_     = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal}
+            , .lineNumber_     = fri::TextStyle {fri::Color {255, 255, 255}, fri::FontStyle::Normal} };
         return ret;
     }
 
@@ -180,7 +181,8 @@ namespace
                         , .primType_       = style_or_default(styleMap, "primType")
                         , .stringLiteral_  = style_or_default(styleMap, "stringLiteral")
                         , .valLiteral_     = style_or_default(styleMap, "valLiteral")
-                        , .numLiteral_     = style_or_default(styleMap, "numLiteral") };
+                        , .numLiteral_     = style_or_default(styleMap, "numLiteral")
+                        , .lineNumber_     = style_or_default(styleMap, "lineNumber") };
                 }
 
             }
@@ -257,8 +259,6 @@ int main(int argc, char** argv)
         return 1;
     }
 
-        // TODO inicializuj [predka] iba ak je to naozaj predok
-
     // Possibly read settings or use defaults.
     auto settings = try_load_setting(outputMode);
 
@@ -269,7 +269,8 @@ int main(int argc, char** argv)
 
     // Analyze the code and generate pseudocode.
     auto printerVar         = printer(outputMode, ofstOpt, settings);
-    auto generator          = fri::PseudocodeGenerator(printer_ref(printerVar), settings.style);
+    auto decoratedPrinter   = fri::NumberedCodePrinter(printer_ref(printerVar), 3, settings.style.lineNumber_);
+    auto generator          = fri::PseudocodeGenerator(decoratedPrinter, settings.style);
     auto const abstractCode = fri::extract_code(code);
 
     std::cout << "---------------------------------------------" << '\n';

@@ -405,6 +405,32 @@ namespace fri
     {
     }
 
+    Case::Case
+        ( uptr<Expression>  c
+        , CompoundStatement b ) :
+        expr_ (std::move(c)),
+        body_ (std::move(b))
+    {
+    }
+
+    Switch::Switch
+        ( uptr<Expression>  c
+        , std::vector<Case> bs ) :
+        cond_  (std::move(c)),
+        cases_ (std::move(bs))
+    {
+    }
+
+    Switch::Switch
+        ( uptr<Expression>  c
+        , std::vector<Case> bs
+        , CompoundStatement d ) :
+        cond_    (std::move(c)),
+        cases_   (std::move(bs)),
+        default_ (std::move(d))
+    {
+    }
+
     Lambda::Lambda
         ( std::vector<ParamDefinition> ps
         , CompoundStatement            b ) :

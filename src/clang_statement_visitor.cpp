@@ -1,6 +1,6 @@
 #include "clang_statement_visitor.hpp"
 #include "clang_utils.hpp"
-#include <iostream>
+    #include <iostream>
 
 namespace fri
 {
@@ -193,6 +193,100 @@ namespace fri
         (clang::CXXThrowExpr* const) -> bool
     {
         statement_ = std::make_unique<Throw>();
+        return false;
+    }
+
+    auto StatementVisitor::VisitSwitchStmt
+        (clang::SwitchStmt* const s) -> bool
+    {
+        auto cond  = expressioner_.read_expression(s->getCond());
+        auto cases = std::vector<Case>();
+        auto def   = std::optional<CompoundStatement>{};
+
+        auto swCit = s->child_begin();
+        ++swCit; // cond
+        if (swCit != s->child_end() and clang::isa<clang::CompoundStmt>(*swCit))
+        {
+            auto const end = (*swCit)->child_end();
+            auto cit = (*swCit)->child_begin();
+            while (cit != end)
+            {
+                if (auto const swCase = clang::dyn_cast<clang::CaseStmt>(*cit))
+                {
+                    auto caseExpr = swCase->child_begin() != swCase->child_end()
+                        ? expressioner_.read_expression(*swCase->child_begin())
+                        : std::unique_ptr<Expression>();
+
+                    auto caseBody = std::vector<uptr<Statement>>();
+
+                    if (swCase->getSubStmt())
+                    {
+                        caseBody.emplace_back(this->read_statement(swCase->getSubStmt()));
+                    }
+                    ++cit; // subStmt
+                    while (cit != end and not (clang::isa<clang::CaseStmt>(*cit) or clang::isa<clang::DefaultStmt>(*cit)))
+                    {
+                        if (not clang::isa<clang::BreakStmt>(*cit))
+                        {
+                            auto stmt = this->read_statement(*cit);
+                            if (stmt)
+                            {
+                                caseBody.emplace_back(std::move(stmt));
+                            }
+                        }
+                        ++cit;
+                    }
+                    cases.emplace_back(std::move(caseExpr), std::move(caseBody));
+                }
+                else if (auto const swDefault = clang::dyn_cast<clang::DefaultStmt>(*cit))
+                {
+                    auto defaultBody = std::vector<uptr<Statement>>();
+                    if (swDefault->getSubStmt())
+                    {
+                        defaultBody.emplace_back(this->read_statement(swDefault->getSubStmt()));
+                    }
+                    ++cit; // subStmt
+                    while (cit != end and not (clang::isa<clang::CaseStmt>(*cit) or clang::isa<clang::DefaultStmt>(*cit)))
+                    {
+                        if (not clang::isa<clang::BreakStmt>(*cit))
+                        {
+                            auto stmt = this->read_statement(*cit);
+                            if (stmt)
+                            {
+                                defaultBody.emplace_back(std::move(stmt));
+                            }
+                        }
+                        ++cit;
+                    }
+                    def = std::optional<CompoundStatement>(std::move(defaultBody));
+                }
+                else
+                {
+                    std::cout << "## Unexpected statement in switch." << '\n';
+                    (*cit)->dump();
+                    ++cit;
+                }
+            }
+        }
+
+        statement_ = def
+            ? std::make_unique<Switch>(std::move(cond), std::move(cases), std::move(*def))
+            : std::make_unique<Switch>(std::move(cond), std::move(cases));
+
+        // std::cout << "## Cond:" << '\n';
+        // s->getCond();
+        // for (auto const c : (*(++s->child_begin()))->children())
+        // {
+        //     std::cout << "## Child:" << '\n';
+        //     c->dump();
+        // }
+        return false;
+    }
+
+    auto StatementVisitor::VisitBreakStmt
+        (clang::BreakStmt* const) -> bool
+    {
+        statement_ = std::make_unique<Break>();
         return false;
     }
 }

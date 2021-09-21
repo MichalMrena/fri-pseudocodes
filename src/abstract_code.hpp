@@ -347,6 +347,29 @@ namespace fri
         DoWhileLoop (uptr<Expression>, CompoundStatement);
     };
 
+    struct Break : public VisitableFamily<Statement, Break>
+    {
+    };
+
+    struct Case : public VisitableFamily<Statement, Case>
+    {
+        uptr<Expression>  expr_;
+        CompoundStatement body_;
+        Case (uptr<Expression>, CompoundStatement);
+    };
+
+    struct Switch : public VisitableFamily<Statement, Switch>
+    {
+        uptr<Expression>                 cond_;
+        std::vector<Case>                cases_;
+        std::optional<CompoundStatement> default_;
+        Switch ( uptr<Expression>
+               , std::vector<Case> );
+        Switch ( uptr<Expression>
+               , std::vector<Case>
+               , CompoundStatement );
+    };
+
     struct Throw : public VisitableFamily<Statement, Throw>
     {
     };
@@ -488,6 +511,9 @@ namespace fri
         virtual auto visit (If const&)                   -> void = 0;
         virtual auto visit (Delete const&)               -> void = 0;
         virtual auto visit (Throw const&)                -> void = 0;
+        virtual auto visit (Break const&)                -> void = 0;
+        virtual auto visit (Case const&)                 -> void = 0;
+        virtual auto visit (Switch const&)               -> void = 0;
     };
 
     template<class Derived>

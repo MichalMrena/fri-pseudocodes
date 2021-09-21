@@ -38,6 +38,7 @@ namespace fri
         auto VisitConditionalOperator         (clang::ConditionalOperator*)         -> bool;
         auto VisitCXXUnresolvedConstructExpr  (clang::CXXUnresolvedConstructExpr*)  -> bool;
         auto VisitLambdaExpr                  (clang::LambdaExpr*)                  -> bool;
+        auto VisitStringLiteral               (clang::StringLiteral*)               -> bool;
 
     private:
         uptr<Expression>              expression_;

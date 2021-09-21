@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <cctype>
 #include <cassert>
+#include <cmath>
 
 namespace fri
 {
@@ -183,6 +184,7 @@ namespace fri
         op(st.stringLiteral_.color_);
         op(st.valLiteral_.color_);
         op(st.numLiteral_.color_);
+        op(st.lineNumber_.color_);
     }
 
 // RtfCodePrinter definitions:
@@ -241,6 +243,12 @@ namespace fri
         this->end_line();
     }
 
+    auto RtfCodePrinter::end_region
+        () -> void
+    {
+        *ofst_ << R"(\page)" << '\n';
+    }
+
     auto RtfCodePrinter::out
         (std::string_view s) -> RtfCodePrinter&
     {
@@ -257,12 +265,6 @@ namespace fri
         this->end_style(st.style_);
         this->end_color();
         return *this;
-    }
-
-    auto RtfCodePrinter::end_region
-        () -> void
-    {
-        *ofst_ << R"(\page)" << '\n';
     }
 
     auto RtfCodePrinter::begin_color
@@ -386,6 +388,12 @@ namespace fri
         this->end_line();
     }
 
+    auto DummyCodePrinter::end_region
+        () -> void
+    {
+        this->blank_line();
+    }
+
     auto DummyCodePrinter::out
         (std::string_view const s) -> DummyCodePrinter&
     {
@@ -400,16 +408,97 @@ namespace fri
         return *this;
     }
 
-    auto DummyCodePrinter::end_region
-        () -> void
-    {
-        this->blank_line();
-    }
-
     auto DummyCodePrinter::get_column
         () const -> std::size_t
     {
         return currentColumn_;
+    }
+
+// NumberedCodePrinter definitions:
+
+    NumberedCodePrinter::NumberedCodePrinter
+        (ICodePrinter& d, std::size_t const w, TextStyle s) :
+        decoree_    {&d},
+        numWidth_   {w},
+        numStyle_   {s},
+        currentNum_ {1}
+    {
+    }
+
+    auto NumberedCodePrinter::inc_indent
+        () -> void
+    {
+        decoree_->inc_indent();
+    }
+
+    auto NumberedCodePrinter::dec_indent
+        () -> void
+    {
+        decoree_->dec_indent();
+    }
+
+    auto NumberedCodePrinter::begin_line
+        () -> void
+    {
+        this->out_number();
+        decoree_->out(" ");
+        decoree_->begin_line();
+    }
+
+    auto NumberedCodePrinter::end_line
+        () -> void
+    {
+        decoree_->end_line();
+    }
+
+    auto NumberedCodePrinter::blank_line
+        () -> void
+    {
+        this->out_number();
+        decoree_->blank_line();
+    }
+
+    auto NumberedCodePrinter::end_region
+        () -> void
+    {
+        currentNum_ = 1;
+        decoree_->end_region();
+    }
+
+    auto NumberedCodePrinter::out
+        (std::string_view const s) -> NumberedCodePrinter&
+    {
+        decoree_->out(s);
+        return *this;
+    }
+
+    auto NumberedCodePrinter::out
+        (std::string_view const s, TextStyle const& st) -> NumberedCodePrinter&
+    {
+        decoree_->out(s, st);
+        return *this;
+    }
+
+    auto NumberedCodePrinter::current_indent
+        () const -> IndentState
+    {
+        return decoree_->current_indent();
+    }
+
+    auto NumberedCodePrinter::out_number
+        () -> void
+    {
+        auto const len = static_cast<long>(std::ceil(std::log10(static_cast<double>(currentNum_) + 0.1)));
+        auto const numWidth = static_cast<long>(numWidth_);
+        auto const spaceCount = static_cast<std::size_t>(std::max(numWidth - len, 0l));
+        auto const spacesOffset = std::min(Spaces.size(), spaceCount);
+
+        auto out = std::string();
+        out += Spaces.substr(0, spacesOffset);
+        out += std::to_string(currentNum_);
+        out += ".";
+        decoree_->out(out, numStyle_);
+        ++currentNum_;
     }
 
 // PseudocodeGenerator definitions:
@@ -1032,6 +1121,52 @@ namespace fri
         out_->out("CHYBA", style_.stringLiteral_);
     }
 
+    auto PseudocodeGenerator::visit
+        (Break const&) -> void
+    {
+    }
+
+    auto PseudocodeGenerator::visit
+        (Case const& c) -> void
+    {
+        out_->begin_line();
+        out_->out("hodnotu ", style_.controlKeyword_);
+        if (c.expr_)
+        {
+            c.expr_->accept(*this);
+        }
+        out_->out(" tak", style_.controlKeyword_);
+        c.body_.accept(*this);
+    }
+
+    auto PseudocodeGenerator::visit
+        (Switch const& s) -> void
+    {
+        out_->out("Keď ", style_.controlKeyword_);
+        out_->out("(");
+        s.cond_->accept(*this);
+        out_->out(")");
+        out_->out(" nadobúda", style_.controlKeyword_);
+        out_->out(" {");
+        out_->end_line();
+        out_->inc_indent();
+        for (auto const& swCase : s.cases_)
+        {
+            swCase.accept(*this);
+            out_->end_line();
+        }
+        if (s.default_)
+        {
+            out_->begin_line();
+            out_->out("žiadnu z uvedených hodnôt", style_.controlKeyword_);
+            (*s.default_).accept(*this);
+            out_->end_line();
+        }
+        out_->dec_indent();
+        out_->begin_line();
+        out_->out("}");
+    }
+
     auto PseudocodeGenerator::out_plain
         (std::string_view const s) -> void
     {
@@ -1054,8 +1189,8 @@ namespace fri
             case BinOpcode::Mul: return "*";
             case BinOpcode::Div: return "/";
             case BinOpcode::Mod: return "mod";
-            case BinOpcode::And: return "a";
-            case BinOpcode::Or:  return "alebo";
+            case BinOpcode::And: return "∧";
+            case BinOpcode::Or:  return "∨";
             case BinOpcode::LT:  return "<";
             case BinOpcode::LE:  return "<=";
             case BinOpcode::GT:  return ">";
@@ -1167,8 +1302,12 @@ namespace fri
             {
                 out_->out(", ");
             });
-            out_->out("): ");
-            m.retType_->accept(*this);
+            out_->out(")");
+            if (not (isIn == IsInline::NoInline and m.retType_->to_string().starts_with("void")))
+            {
+                out_->out(": ");
+                m.retType_->accept(*this);
+            }
         };
 
         // Outputs method header into multiple lines.
@@ -1398,7 +1537,7 @@ namespace fri
         };
 
         auto const col = this->try_output_length(out_single_line);
-        if (col > 80)
+        if (col > 75)
         {
             out_multi_line();
         }
