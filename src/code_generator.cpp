@@ -7,31 +7,10 @@
 #include <cassert>
 #include <cmath>
 
+#include "utils.hpp"
+
 namespace fri
 {
-// Utils:
-
-    namespace
-    {
-        template<class T>
-        struct is_smart_pointer : public std::false_type
-        {
-        };
-
-        template<class T>
-        struct is_smart_pointer<std::unique_ptr<T>> : public std::true_type
-        {
-        };
-
-        template<class T>
-        struct is_smart_pointer<std::shared_ptr<T>> : public std::true_type
-        {
-        };
-
-        template<class T>
-        auto constexpr is_smart_pointer_v = is_smart_pointer<T>::value;
-    }
-
 // Color definitions:
 
     auto to_string (Color const& c) -> std::string
@@ -718,9 +697,9 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Indirection const& p) -> void
     {
-        auto isVoidChecker = IsVoidVisitor();
-        p.pointee_->accept(isVoidChecker);
-        if (isVoidChecker.result())
+        // auto isVoidChecker = IsVoidVisitor();
+        // p.pointee_->accept(isVoidChecker);
+        if (p.pointee_->to_string() == "void")
         {
             out_->out("adresa", style_.primType_);
         }
@@ -1020,7 +999,10 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Return const& r) -> void
     {
-        out_->out("Vráť ", style_.controlKeyword_);
+        if (!isa<IfExpression>(r.expression_))
+        {
+            out_->out("Vráť ", style_.controlKeyword_);
+        }
         r.expression_->accept(*this);
     }
 
@@ -1486,9 +1468,7 @@ namespace fri
     auto PseudocodeGenerator::visit_member_base
         (Expression const& e) -> void
     {
-        auto isThisChecker = IsThisVisitor();
-        e.accept(isThisChecker);
-        if (not isThisChecker.result())
+        if (not isa<This>(e))
         {
             e.accept(*this);
             out_->out("→");
@@ -1620,24 +1600,6 @@ namespace fri
         auto const column = dummyOutput.get_column();
         out_ = realOutput;
         return column;
-    }
-
-    auto IsCheckVisitorBase::result
-        () const -> bool
-    {
-        return result_;
-    }
-
-    auto IsVoidVisitor::visit
-        (PrimType const& t) -> void
-    {
-        result_ = t.name_ == "void";
-    }
-
-    auto IsThisVisitor::visit
-        (This const&) -> void
-    {
-        result_ = true;
     }
 
     ForVarDefVisitor::ForVarDefVisitor
