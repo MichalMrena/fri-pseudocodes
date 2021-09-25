@@ -114,6 +114,11 @@ namespace fri
         virtual auto blank_line () -> void = 0;
 
         /**
+         *  @brief Jumps to the next line with the same indent.
+         */
+        virtual auto wrap_line () -> void = 0;
+
+        /**
          *  @brief Prints string to the output.
          */
         virtual auto out (std::string_view) -> ICodePrinter& = 0;
@@ -145,6 +150,7 @@ namespace fri
 
         auto inc_indent     () -> void override;
         auto dec_indent     () -> void override;
+        auto wrap_line      () -> void override;
         auto current_indent () const -> IndentState override;
 
     protected:
@@ -218,7 +224,7 @@ namespace fri
     };
 
     /**
-     *  @brief /dev/null code printer.
+     *  @brief /dev/null code printer. Used to mease how long a line would be.
      */
     class DummyCodePrinter : public CommonCodePrinter
     {
@@ -254,6 +260,7 @@ namespace fri
         auto dec_indent () -> void override;
         auto begin_line () -> void override;
         auto end_line   () -> void override;
+        auto wrap_line  () -> void override;
         auto blank_line () -> void override;
         auto end_region () -> void override;
 
@@ -264,6 +271,7 @@ namespace fri
 
     private:
         auto out_number () -> void;
+        auto out_spaces () -> void;
 
     private:
         inline static constexpr auto Spaces

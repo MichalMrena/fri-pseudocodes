@@ -68,6 +68,13 @@ namespace fri
         }
     }
 
+    auto CommonCodePrinter::wrap_line
+        () -> void
+    {
+        this->end_line();
+        this->begin_line();
+    }
+
     auto CommonCodePrinter::current_indent
         () const -> IndentState
     {
@@ -430,6 +437,14 @@ namespace fri
         decoree_->end_line();
     }
 
+    auto NumberedCodePrinter::wrap_line
+        () -> void
+    {
+        decoree_->end_line();
+        this->out_spaces();
+        decoree_->begin_line();
+    }
+
     auto NumberedCodePrinter::blank_line
         () -> void
     {
@@ -478,6 +493,12 @@ namespace fri
         out += ".";
         decoree_->out(out, numStyle_);
         ++currentNum_;
+    }
+
+    auto NumberedCodePrinter::out_spaces
+        () -> void
+    {
+        decoree_->out(Spaces.substr(0, std::min(numWidth_ + 2, Spaces.size())));
     }
 
 // PseudocodeGenerator definitions:
@@ -637,13 +658,11 @@ namespace fri
         out_->out("(");
         c.cond_->accept(*this);
         out_->out(")");
-        out_->end_line();
         out_->inc_indent();
-        out_->begin_line();
+        out_->wrap_line();
         out_->out("tak vráť ", style_.controlKeyword_);
         c.then_->accept(*this);
-        out_->end_line();
-        out_->begin_line();
+        out_->wrap_line();
         out_->out("inak vráť ", style_.controlKeyword_);
         c.else_->accept(*this);
         out_->dec_indent();
@@ -1268,8 +1287,7 @@ namespace fri
     auto PseudocodeGenerator::visit_decl
         (Class const& c, Method const& m, IsInline const isIn) -> void
     {
-        // Outputs method header into single line.
-        auto const out_single_line = [this, &c, &m, isIn]()
+        auto const out_name = [this, &c, &m, isIn]()
         {
             out_->begin_line();
             out_->out("operácia ", style_.keyword_);
@@ -1279,64 +1297,21 @@ namespace fri
                 out_->out(".");
             }
             out_->out(m.name_, style_.function_);
-            out_->out("(");
-            this->visit_range(m.params_, [this]()
-            {
-                out_->out(", ");
-            });
-            out_->out(")");
-            if (not (isIn == IsInline::NoInline and m.retType_->to_string().starts_with("void")))
-            {
-                out_->out(": ");
-                m.retType_->accept(*this);
-            }
         };
 
-        // Outputs method header into multiple lines.
-        // Each parameter is on a separate line.
-        auto const out_multi_line = [this, &c, &m, isIn]()
+        auto const out_type = [this, &m]()
         {
-            out_->begin_line();
-            out_->out("operácia ", style_.keyword_);
-            if (isIn == IsInline::NoInline)
-            {
-                this->visit_class_name(c);
-                out_->out(".");
-            }
-            out_->out(m.name_, style_.function_);
-            out_->out("(");
-            out_->end_line();
-
-            out_->inc_indent();
-            out_->begin_line();
-            this->visit_range(m.params_, [this]()
-            {
-                out_->out(",");
-                out_->end_line();
-                out_->begin_line();
-            });
-            out_->end_line();
-            out_->dec_indent();
-            out_->begin_line();
-            out_->out("): ");
+            out_->out(": ");
             m.retType_->accept(*this);
         };
 
-        auto const col = this->try_output_length(out_single_line);
-        if (col > 80)
-        {
-            out_multi_line();
-        }
-        else
-        {
-            out_single_line();
-        }
+        this->visit_decl(out_name, m.params_, out_type);
     }
 
     auto PseudocodeGenerator::visit_decl
         (Class const& c, Constructor const& con, IsInline const isIn) -> void
     {
-        this->visit_decl([this, &c, isIn]()
+        auto const out_name = [this, &c, isIn]()
         {
             out_->begin_line();
             out_->out("konštruktor", style_.keyword_);
@@ -1345,7 +1320,9 @@ namespace fri
                 out_->out(" ");
                 this->visit_class_name(c);
             }
-        }, con.params_, [](){});
+        };
+
+        this->visit_decl(out_name, con.params_, [](){});
     }
 
     auto PseudocodeGenerator::visit_decl
@@ -1477,7 +1454,9 @@ namespace fri
 
     template<class OutputName, class OutputType>
     auto PseudocodeGenerator::visit_decl
-        (OutputName&& name, std::vector<ParamDefinition> const& params, OutputType&& type) -> void
+        ( OutputName&&                        name
+        , std::vector<ParamDefinition> const& params
+        , OutputType&&                        type ) -> void
     {
         // Outputs method header into single line.
         auto const out_single_line = [this, &name, &params, &type]()
@@ -1498,20 +1477,15 @@ namespace fri
         {
             name();
             out_->out("(");
-            out_->end_line();
-
             out_->inc_indent();
-            out_->begin_line();
+            out_->wrap_line();
             this->visit_range(params, [this]()
             {
                 out_->out(",");
-                out_->end_line();
-                out_->begin_line();
+                out_->wrap_line();
             });
-            out_->end_line();
-
             out_->dec_indent();
-            out_->begin_line();
+            out_->wrap_line();
             out_->out(")");
             type();
         };
