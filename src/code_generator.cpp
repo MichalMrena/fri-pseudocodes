@@ -716,8 +716,6 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Indirection const& p) -> void
     {
-        // auto isVoidChecker = IsVoidVisitor();
-        // p.pointee_->accept(isVoidChecker);
         if (p.pointee_->to_string() == "void")
         {
             out_->out("adresa", style_.primType_);
@@ -738,8 +736,12 @@ namespace fri
         {
             out_->out(", ");
         });
-        out_->out(") → ");
-        f.ret_->accept(*this);
+        out_->out(")");
+        if (f.ret_->to_string() != "void")
+        {
+            out_->out(" → ");
+            f.ret_->accept(*this);
+        }
     }
 
     auto PseudocodeGenerator::visit
@@ -1090,15 +1092,10 @@ namespace fri
     {
         out_->out("λ", style_.keyword_);
         out_->out("(");
-        this->visit_range(l.params_,
-            [this](auto const& p)
-            {
-                out_->out(p.var_.name_, style_.variable_);
-            },
-            [this]()
-            {
-                out_->out(", ");
-            });
+        this->visit_range(l.params_, [this]()
+        {
+            out_->out(", ");
+        });
         out_->out(")");
 
         out_->out(" { ");
@@ -1301,8 +1298,11 @@ namespace fri
 
         auto const out_type = [this, &m]()
         {
-            out_->out(": ");
-            m.retType_->accept(*this);
+            if (m.retType_->to_string() != "void")
+            {
+                out_->out(": ");
+                m.retType_->accept(*this);
+            }
         };
 
         this->visit_decl(out_name, m.params_, out_type);
@@ -1422,10 +1422,36 @@ namespace fri
         out_->begin_line();
         out_->out("deštruktor ", style_.keyword_);
         this->visit_class_name(c);
+
+        out_->out(" {");
+        out_->inc_indent();
+        out_->end_line();
+
+        if (not c.bases_.empty())
+        {
+            for (auto const& b : c.bases_)
+            {
+                out_->begin_line();
+                out_->out("Finalizuj predka ", style_.keyword_);
+                b->accept(*this);
+                out_->end_line();
+            }
+            out_->blank_line();
+        }
+
         if (d.body_)
         {
-            d.body_->accept(*this);
+            for (auto const& s : (*d.body_).statements_)
+            {
+                out_->begin_line();
+                s->accept(*this);
+                out_->end_line();
+            }
         }
+
+        out_->dec_indent();
+        out_->begin_line();
+        out_->out("}");
         out_->end_line();
         out_->blank_line();
     }
