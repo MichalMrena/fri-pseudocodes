@@ -232,7 +232,8 @@ namespace fri
     auto RtfCodePrinter::end_region
         () -> void
     {
-        *ofst_ << R"(\page)" << '\n';
+        // *ofst_ << R"(\page)" << '\n';
+        this->blank_line();
     }
 
     auto RtfCodePrinter::out
@@ -1427,18 +1428,6 @@ namespace fri
         out_->inc_indent();
         out_->end_line();
 
-        if (not c.bases_.empty())
-        {
-            for (auto const& b : c.bases_)
-            {
-                out_->begin_line();
-                out_->out("Finalizuj predka ", style_.keyword_);
-                b->accept(*this);
-                out_->end_line();
-            }
-            out_->blank_line();
-        }
-
         if (d.body_)
         {
             for (auto const& s : (*d.body_).statements_)
@@ -1447,6 +1436,18 @@ namespace fri
                 s->accept(*this);
                 out_->end_line();
             }
+        }
+
+        if (not c.bases_.empty())
+        {
+            for (auto const& b : c.bases_)
+            {
+                out_->begin_line();
+                out_->out("finalizuj predka ", style_.keyword_);
+                b->accept(*this);
+                out_->end_line();
+            }
+            out_->blank_line();
         }
 
         out_->dec_indent();
