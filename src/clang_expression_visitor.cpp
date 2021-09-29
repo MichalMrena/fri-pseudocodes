@@ -30,7 +30,8 @@ namespace fri
         }
         else
         {
-            s->dump();
+                std::cout << "## Unknown expression:" << '\n';
+                s->dump();
             return std::make_unique<StringLiteral>("<unknown expression>");
         }
     }
@@ -345,6 +346,13 @@ namespace fri
             expression_ = std::make_unique<Lambda>( std::move(params)
                                                   , std::move(*body) );
         }
+        return false;
+    }
+
+    auto ExpressionVisitor::VisitStringLiteral
+        (clang::StringLiteral* s) -> bool
+    {
+        expression_ = std::make_unique<StringLiteral>(s->getString().str());
         return false;
     }
 }

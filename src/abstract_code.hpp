@@ -7,8 +7,10 @@
 #include <cstdint>
 #include <optional>
 #include <variant>
+#include <type_traits>
 
 #include "types.hpp"
+#include "utils.hpp"
 
 namespace fri
 {
@@ -347,6 +349,29 @@ namespace fri
         DoWhileLoop (uptr<Expression>, CompoundStatement);
     };
 
+    struct Break : public VisitableFamily<Statement, Break>
+    {
+    };
+
+    struct Case : public VisitableFamily<Statement, Case>
+    {
+        uptr<Expression>  expr_;
+        CompoundStatement body_;
+        Case (uptr<Expression>, CompoundStatement);
+    };
+
+    struct Switch : public VisitableFamily<Statement, Switch>
+    {
+        uptr<Expression>                 cond_;
+        std::vector<Case>                cases_;
+        std::optional<CompoundStatement> default_;
+        Switch ( uptr<Expression>
+               , std::vector<Case> );
+        Switch ( uptr<Expression>
+               , std::vector<Case>
+               , CompoundStatement );
+    };
+
     struct Throw : public VisitableFamily<Statement, Throw>
     {
     };
@@ -446,49 +471,143 @@ namespace fri
     public:
         virtual ~CodeVisitor () = default;
 
-        virtual auto visit (IntLiteral const&)           -> void = 0;
-        virtual auto visit (FloatLiteral const&)         -> void = 0;
-        virtual auto visit (StringLiteral const&)        -> void = 0;
-        virtual auto visit (NullLiteral const&)          -> void = 0;
-        virtual auto visit (BoolLiteral const&)          -> void = 0;
-        virtual auto visit (BinaryOperator const&)       -> void = 0;
-        virtual auto visit (Parenthesis const&)          -> void = 0;
-        virtual auto visit (VarRef const&)               -> void = 0;
-        virtual auto visit (MemberVarRef const&)         -> void = 0;
-        virtual auto visit (UnaryOperator const&)        -> void = 0;
-        virtual auto visit (New const&)                  -> void = 0;
-        virtual auto visit (FunctionCall const&)         -> void = 0;
-        virtual auto visit (ConstructorCall const&)      -> void = 0;
-        virtual auto visit (DestructorCall const&)       -> void = 0;
-        virtual auto visit (MemberFunctionCall const&)   -> void = 0;
-        virtual auto visit (ExpressionCall const&)       -> void = 0;
-        virtual auto visit (This const&)                 -> void = 0;
-        virtual auto visit (IfExpression const&)         -> void = 0;
-        virtual auto visit (Lambda const&)               -> void = 0;
+        virtual auto visit (IntLiteral const&)          -> void = 0;
+        virtual auto visit (FloatLiteral const&)        -> void = 0;
+        virtual auto visit (StringLiteral const&)       -> void = 0;
+        virtual auto visit (NullLiteral const&)         -> void = 0;
+        virtual auto visit (BoolLiteral const&)         -> void = 0;
+        virtual auto visit (BinaryOperator const&)      -> void = 0;
+        virtual auto visit (Parenthesis const&)         -> void = 0;
+        virtual auto visit (VarRef const&)              -> void = 0;
+        virtual auto visit (MemberVarRef const&)        -> void = 0;
+        virtual auto visit (UnaryOperator const&)       -> void = 0;
+        virtual auto visit (New const&)                 -> void = 0;
+        virtual auto visit (FunctionCall const&)        -> void = 0;
+        virtual auto visit (ConstructorCall const&)     -> void = 0;
+        virtual auto visit (DestructorCall const&)      -> void = 0;
+        virtual auto visit (MemberFunctionCall const&)  -> void = 0;
+        virtual auto visit (ExpressionCall const&)      -> void = 0;
+        virtual auto visit (This const&)                -> void = 0;
+        virtual auto visit (IfExpression const&)        -> void = 0;
+        virtual auto visit (Lambda const&)              -> void = 0;
 
-        virtual auto visit (PrimType const&)             -> void = 0;
-        virtual auto visit (CustomType const&)           -> void = 0;
-        virtual auto visit (TemplatedType const&)        -> void = 0;
-        virtual auto visit (Indirection const&)          -> void = 0;
-        virtual auto visit (Function const&)             -> void = 0;
-        virtual auto visit (Nested const&)               -> void = 0;
+        virtual auto visit (PrimType const&)            -> void = 0;
+        virtual auto visit (CustomType const&)          -> void = 0;
+        virtual auto visit (TemplatedType const&)       -> void = 0;
+        virtual auto visit (Indirection const&)         -> void = 0;
+        virtual auto visit (Function const&)            -> void = 0;
+        virtual auto visit (Nested const&)              -> void = 0;
 
-        virtual auto visit (Class const&)                -> void = 0;
-        virtual auto visit (Method const&)               -> void = 0;
-        virtual auto visit (VarDefCommon const&)         -> void = 0;
-        virtual auto visit (FieldDefinition const&)      -> void = 0;
-        virtual auto visit (ParamDefinition const&)      -> void = 0;
-        virtual auto visit (VarDefinition const&)        -> void = 0;
-        virtual auto visit (ForLoop const&)              -> void = 0;
-        virtual auto visit (WhileLoop const&)            -> void = 0;
-        virtual auto visit (DoWhileLoop const&)          -> void = 0;
-        virtual auto visit (CompoundStatement const&)    -> void = 0;
-        virtual auto visit (ExpressionStatement const&)  -> void = 0;
-        virtual auto visit (Return const&)               -> void = 0;
-        virtual auto visit (If const&)                   -> void = 0;
-        virtual auto visit (Delete const&)               -> void = 0;
-        virtual auto visit (Throw const&)                -> void = 0;
+        virtual auto visit (Class const&)               -> void = 0;
+        virtual auto visit (Method const&)              -> void = 0;
+        virtual auto visit (VarDefCommon const&)        -> void = 0;
+        virtual auto visit (FieldDefinition const&)     -> void = 0;
+        virtual auto visit (ParamDefinition const&)     -> void = 0;
+        virtual auto visit (VarDefinition const&)       -> void = 0;
+        virtual auto visit (ForLoop const&)             -> void = 0;
+        virtual auto visit (WhileLoop const&)           -> void = 0;
+        virtual auto visit (DoWhileLoop const&)         -> void = 0;
+        virtual auto visit (CompoundStatement const&)   -> void = 0;
+        virtual auto visit (ExpressionStatement const&) -> void = 0;
+        virtual auto visit (Return const&)              -> void = 0;
+        virtual auto visit (If const&)                  -> void = 0;
+        virtual auto visit (Delete const&)              -> void = 0;
+        virtual auto visit (Throw const&)               -> void = 0;
+        virtual auto visit (Break const&)               -> void = 0;
+        virtual auto visit (Case const&)                -> void = 0;
+        virtual auto visit (Switch const&)              -> void = 0;
     };
+
+    /**
+     *  @brief Adapter that implements methods as no-op.
+     */
+    class CodeVisitorAdapter : public CodeVisitor
+    {
+        auto visit (IntLiteral const&)          -> void override {};
+        auto visit (FloatLiteral const&)        -> void override {};
+        auto visit (StringLiteral const&)       -> void override {};
+        auto visit (NullLiteral const&)         -> void override {};
+        auto visit (BoolLiteral const&)         -> void override {};
+        auto visit (BinaryOperator const&)      -> void override {};
+        auto visit (Parenthesis const&)         -> void override {};
+        auto visit (VarRef const&)              -> void override {};
+        auto visit (MemberVarRef const&)        -> void override {};
+        auto visit (UnaryOperator const&)       -> void override {};
+        auto visit (New const&)                 -> void override {};
+        auto visit (FunctionCall const&)        -> void override {};
+        auto visit (ConstructorCall const&)     -> void override {};
+        auto visit (DestructorCall const&)      -> void override {};
+        auto visit (MemberFunctionCall const&)  -> void override {};
+        auto visit (ExpressionCall const&)      -> void override {};
+        auto visit (This const&)                -> void override {};
+        auto visit (IfExpression const&)        -> void override {};
+        auto visit (Lambda const&)              -> void override {};
+
+        auto visit (PrimType const&)            -> void override {};
+        auto visit (CustomType const&)          -> void override {};
+        auto visit (TemplatedType const&)       -> void override {};
+        auto visit (Indirection const&)         -> void override {};
+        auto visit (Function const&)            -> void override {};
+        auto visit (Nested const&)              -> void override {};
+
+        auto visit (Class const&)               -> void override {};
+        auto visit (Method const&)              -> void override {};
+        auto visit (VarDefCommon const&)        -> void override {};
+        auto visit (FieldDefinition const&)     -> void override {};
+        auto visit (ParamDefinition const&)     -> void override {};
+        auto visit (VarDefinition const&)       -> void override {};
+        auto visit (ForLoop const&)             -> void override {};
+        auto visit (WhileLoop const&)           -> void override {};
+        auto visit (DoWhileLoop const&)         -> void override {};
+        auto visit (CompoundStatement const&)   -> void override {};
+        auto visit (ExpressionStatement const&) -> void override {};
+        auto visit (Return const&)              -> void override {};
+        auto visit (If const&)                  -> void override {};
+        auto visit (Delete const&)              -> void override {};
+        auto visit (Throw const&)               -> void override {};
+        auto visit (Break const&)               -> void override {};
+        auto visit (Case const&)                -> void override {};
+        auto visit (Switch const&)              -> void override {};
+    };
+
+    /**
+     *  @brief Checks if visitable type is T.
+     */
+    template<class T>
+    class IsaVisitor : public CodeVisitorAdapter
+    {
+    public:
+        auto visit  (T const&) -> void override;
+        auto result () const   -> bool;
+
+    private:
+        bool result_ {false};
+    };
+
+    /**
+     *  @brief Checks if U is T.
+     */
+    template<class T, class U>
+    auto isa (U const& u) -> bool
+    {
+        auto v = IsaVisitor<T>();
+        if constexpr (std::is_pointer_v<U> or is_smart_pointer_v<U>)
+        {
+            u->accept(v);
+        }
+        else
+        {
+            u.accept(v);
+        }
+        return v.result();
+    }
+
+    template<class VirtualBase, class Derived>
+    auto VisitableFamily<VirtualBase, Derived>::accept
+        (CodeVisitor& visitor) const -> void
+    {
+        visitor.visit(static_cast<Derived const&>(*this));
+    }
 
     template<class Derived>
     auto Visitable<Derived>::accept
@@ -497,11 +616,18 @@ namespace fri
         visitor.visit(static_cast<Derived const&>(*this));
     }
 
-    template<class VirtualBase, class Derived>
-    auto VisitableFamily<VirtualBase, Derived>::accept
-        (CodeVisitor& visitor) const -> void
+    template<class T>
+    auto IsaVisitor<T>::visit
+        (T const&) -> void
     {
-        visitor.visit(static_cast<Derived const&>(*this));
+        result_ = true;
+    }
+
+    template<class T>
+    auto IsaVisitor<T>::result
+        () const -> bool
+    {
+        return result_;
     }
 }
 

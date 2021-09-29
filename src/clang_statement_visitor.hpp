@@ -30,6 +30,8 @@ namespace fri
         auto VisitCallExpr               (clang::CallExpr*)               -> bool;
         auto VisitBinaryOperator         (clang::BinaryOperator*)         -> bool;
         auto VisitCXXThrowExpr           (clang::CXXThrowExpr*)           -> bool;
+        auto VisitSwitchStmt             (clang::SwitchStmt*)             -> bool;
+        auto VisitBreakStmt              (clang::BreakStmt*)              -> bool;
 
     private:
         clang::ASTContext*                 context_;

@@ -3,10 +3,11 @@
 
 #include "abstract_code.hpp"
 
-#include <ostream>
-#include <fstream>
-#include <string_view>
 #include <cstdint>
+#include <fstream>
+#include <ostream>
+#include <string_view>
+#include <unordered_map>
 
 namespace fri
 {
@@ -57,6 +58,7 @@ namespace fri
         TextStyle stringLiteral_  {Color {}, FontStyle::Normal};
         TextStyle valLiteral_     {Color {}, FontStyle::Normal};
         TextStyle numLiteral_     {Color {}, FontStyle::Normal};
+        TextStyle lineNumber_     {Color {}, FontStyle::Normal};
     };
 
     /**
@@ -113,6 +115,11 @@ namespace fri
         virtual auto blank_line () -> void = 0;
 
         /**
+         *  @brief Jumps to the next line with the same indent.
+         */
+        virtual auto wrap_line () -> void = 0;
+
+        /**
          *  @brief Prints string to the output.
          */
         virtual auto out (std::string_view) -> ICodePrinter& = 0;
@@ -144,6 +151,7 @@ namespace fri
 
         auto inc_indent     () -> void override;
         auto dec_indent     () -> void override;
+        auto wrap_line      () -> void override;
         auto current_indent () const -> IndentState override;
 
     protected:
@@ -169,11 +177,10 @@ namespace fri
         auto begin_line () -> void override;
         auto end_line   () -> void override;
         auto blank_line () -> void override;
+        auto end_region () -> void override;
 
         auto out (std::string_view) -> ConsoleCodePrinter& override;
         auto out (std::string_view, TextStyle const&) -> ConsoleCodePrinter& override;
-
-        auto end_region () -> void override;
 
     private:
         using base = CommonCodePrinter;
@@ -192,14 +199,14 @@ namespace fri
         RtfCodePrinter   (std::ofstream&, OutputSettings const&);
         ~RtfCodePrinter  ();
 
-        auto begin_line  () -> void override;
-        auto end_line    () -> void override;
-        auto blank_line  () -> void override;
+        auto begin_line () -> void override;
+        auto end_line   () -> void override;
+        auto blank_line () -> void override;
+        auto end_region () -> void override;
 
         auto out (std::string_view) -> RtfCodePrinter& override;
         auto out (std::string_view, TextStyle const&) -> RtfCodePrinter& override;
 
-        auto end_region () -> void override;
 
     private:
         using base = CommonCodePrinter;
@@ -218,21 +225,20 @@ namespace fri
     };
 
     /**
-     *  @brief /dev/null code printer.
+     *  @brief /dev/null code printer. Used to mease how long a line would be.
      */
     class DummyCodePrinter : public CommonCodePrinter
     {
     public:
         DummyCodePrinter (IndentState);
 
-        auto begin_line  () -> void override;
-        auto end_line    () -> void override;
-        auto blank_line  () -> void override;
+        auto begin_line () -> void override;
+        auto end_line   () -> void override;
+        auto blank_line () -> void override;
+        auto end_region () -> void override;
 
         auto out (std::string_view) -> DummyCodePrinter& override;
         auto out (std::string_view, TextStyle const&) -> DummyCodePrinter& override;
-
-        auto end_region () -> void override;
 
         auto get_column () const -> std::size_t;
 
@@ -249,11 +255,34 @@ namespace fri
     class NumberedCodePrinter : public ICodePrinter
     {
     public:
-        NumberedCodePrinter(ICodePrinter&);
+        NumberedCodePrinter(ICodePrinter&, std::size_t, TextStyle);
+
+        auto inc_indent () -> void override;
+        auto dec_indent () -> void override;
+        auto begin_line () -> void override;
+        auto end_line   () -> void override;
+        auto wrap_line  () -> void override;
+        auto blank_line () -> void override;
+        auto end_region () -> void override;
+
+        auto out (std::string_view) -> NumberedCodePrinter& override;
+        auto out (std::string_view, TextStyle const&) -> NumberedCodePrinter& override;
+
+        auto current_indent () const -> IndentState override;
 
     private:
-        ICodePrinter* decoree_;
-        std::size_t   currentNum_;
+        auto out_number () -> void;
+        auto out_spaces () -> void;
+
+    private:
+        inline static constexpr auto Spaces
+            = std::string_view("                                             ");
+
+    private:
+        ICodePrinter*     decoree_;
+        std::size_t const numWidth_;
+        TextStyle const   numStyle_;
+        std::size_t       currentNum_;
     };
 
     // TODO use
@@ -317,6 +346,9 @@ namespace fri
         auto visit (If const&)                   -> void override;
         auto visit (Delete const&)               -> void override;
         auto visit (Throw const&)                -> void override;
+        auto visit (Break const&)                -> void override;
+        auto visit (Case const&)                 -> void override;
+        auto visit (Switch const&)               -> void override;
 
         auto out_plain    (std::string_view)     -> void;
         auto out_var_name (std::string_view)     -> void;
@@ -370,91 +402,12 @@ namespace fri
         template<class LineOut>
         auto try_output_length (LineOut&&) -> std::size_t;
 
+        auto map_func_name (std::string const&) const -> std::string_view;
+
     private:
         ICodePrinter* out_;
         CodeStyleInfo style_;
-    };
-
-    /**
-     *  @brief Adapter that implements methods as empty.
-     */
-    class CodeVisitorAdapter : public CodeVisitor
-    {
-        auto visit (IntLiteral const&)           -> void override {};
-        auto visit (FloatLiteral const&)         -> void override {};
-        auto visit (StringLiteral const&)        -> void override {};
-        auto visit (NullLiteral const&)          -> void override {};
-        auto visit (BoolLiteral const&)          -> void override {};
-        auto visit (BinaryOperator const&)       -> void override {};
-        auto visit (Parenthesis const&)          -> void override {};
-        auto visit (VarRef const&)               -> void override {};
-        auto visit (MemberVarRef const&)         -> void override {};
-        auto visit (UnaryOperator const&)        -> void override {};
-        auto visit (New const&)                  -> void override {};
-        auto visit (FunctionCall const&)         -> void override {};
-        auto visit (ConstructorCall const&)      -> void override {};
-        auto visit (DestructorCall const&)       -> void override {};
-        auto visit (MemberFunctionCall const&)   -> void override {};
-        auto visit (ExpressionCall const&)       -> void override {};
-        auto visit (This const&)                 -> void override {};
-        auto visit (IfExpression const&)         -> void override {};
-        auto visit (Lambda const&)               -> void override {};
-
-        auto visit (PrimType const&)             -> void override {};
-        auto visit (CustomType const&)           -> void override {};
-        auto visit (TemplatedType const&)        -> void override {};
-        auto visit (Indirection const&)          -> void override {};
-        auto visit (Function const&)             -> void override {};
-        auto visit (Nested const&)               -> void override {};
-
-        auto visit (Class const&)                -> void override {};
-        auto visit (Method const&)               -> void override {};
-        auto visit (VarDefCommon const&)         -> void override {};
-        auto visit (FieldDefinition const&)      -> void override {};
-        auto visit (ParamDefinition const&)      -> void override {};
-        auto visit (VarDefinition const&)        -> void override {};
-        auto visit (ForLoop const&)              -> void override {};
-        auto visit (WhileLoop const&)            -> void override {};
-        auto visit (DoWhileLoop const&)          -> void override {};
-        auto visit (CompoundStatement const&)    -> void override {};
-        auto visit (ExpressionStatement const&)  -> void override {};
-        auto visit (Return const&)               -> void override {};
-        auto visit (If const&)                   -> void override {};
-        auto visit (Delete const&)               -> void override {};
-        auto visit (Throw const&)                -> void override {};
-    };
-
-    class IsCheckVisitorBase : public CodeVisitorAdapter
-    {
-    public:
-        auto result () const -> bool;
-
-    protected:
-        bool result_ {false};
-    };
-
-    /**
-     *  @brief Checks whether given type is void.
-     */
-    struct IsVoidVisitor : public IsCheckVisitorBase
-    {
-        auto visit (PrimType const&) -> void override;
-    };
-
-    /**
-     *  @brief Checks if given expression is this pointer.
-     */
-    struct IsThisVisitor : public IsCheckVisitorBase
-    {
-        auto visit (This const&) -> void override;
-    };
-
-    /**
-     *  @brief Checks given type is indirection.
-     */
-    struct IsIndirectionVisitor : public IsCheckVisitorBase
-    {
-        auto visit (Indirection const&) -> void override;
+        std::unordered_map<std::string, std::string> funcNames_;
     };
 
     /**

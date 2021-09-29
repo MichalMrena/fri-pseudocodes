@@ -1,6 +1,8 @@
 #include "clang_utils.hpp"
 #include "clang_expression_visitor.hpp"
 
+    #include <iostream>
+
 namespace fri
 {
     auto extract_type ( clang::PrintingPolicy const& pp
@@ -110,13 +112,15 @@ namespace fri
 
                 default:
                 {
-                    typePtr->dump();
+                        std::cout << "## Unknown type:" << '\n';
+                        typePtr->dump();
                     return std::make_unique<PrimType>(IsConst(false), "<unknown nested type>");
                 }
             }
         }
         else
         {
+                std::cout << "## Unknown type:" << '\n';
                 typePtr->dump();
             // return std::make_unique<PrimType>(IsConst(false), std::string("<unknown type> (") + qt.getAsString() + std::string(")"));
             return std::make_unique<PrimType>(IsConst(false), std::string("<unknown type>"));
