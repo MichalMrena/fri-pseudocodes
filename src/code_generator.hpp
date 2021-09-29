@@ -3,10 +3,11 @@
 
 #include "abstract_code.hpp"
 
-#include <ostream>
-#include <fstream>
-#include <string_view>
 #include <cstdint>
+#include <fstream>
+#include <ostream>
+#include <string_view>
+#include <unordered_map>
 
 namespace fri
 {
@@ -401,9 +402,12 @@ namespace fri
         template<class LineOut>
         auto try_output_length (LineOut&&) -> std::size_t;
 
+        auto map_func_name (std::string const&) const -> std::string_view;
+
     private:
         ICodePrinter* out_;
         CodeStyleInfo style_;
+        std::unordered_map<std::string, std::string> funcNames_;
     };
 
     /**

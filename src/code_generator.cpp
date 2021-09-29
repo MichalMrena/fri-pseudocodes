@@ -506,8 +506,13 @@ namespace fri
 
     PseudocodeGenerator::PseudocodeGenerator
         (ICodePrinter& out, CodeStyleInfo style) :
-        out_   (&out),
-        style_ (std::move(style))
+        out_       (&out),
+        style_     (std::move(style)),
+        funcNames_ { {"free", "zruš"}
+                   , {"swap", "vymeň"}
+                   , {"memmove", "presuňPamäť"}
+                   , {"memcpy", "skopírujPamäť"}
+                   , {"realloc", "zmeňVeľkosťPamäte"} }
     {
     }
 
@@ -640,10 +645,18 @@ namespace fri
     auto PseudocodeGenerator::visit
         (FunctionCall const& c) -> void
     {
-        out_->out(c.name_, style_.function_);
-        out_->out("(");
-        this->visit_args(c.args_);
-        out_->out(")");
+        if (c.name_ == "free")
+        {
+            out_->out("zruš ", style_.keyword_);
+            this->visit_args(c.args_);
+        }
+        else
+        {
+            out_->out(this->map_func_name(c.name_), style_.function_);
+            out_->out("(");
+            this->visit_args(c.args_);
+            out_->out(")");
+        }
     }
 
     auto PseudocodeGenerator::visit
@@ -949,9 +962,6 @@ namespace fri
         f.type_->accept(*this);
         if (f.initializer_)
         {
-            out_->end_line();
-            out_->begin_line();
-            out_->out(f.name_, style_.variable_);
             out_->out(" ");
             out_->out(bin_op_to_string(BinOpcode::Assign));
             out_->out(" ");
@@ -989,7 +999,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (VarDefinition const& v) -> void
     {
-        out_->out("deklaruj premennú ", style_.keyword_);
+        out_->out("definuj premennú ", style_.keyword_);
         v.var_.accept(*this);
     }
 
@@ -1277,9 +1287,7 @@ namespace fri
     auto PseudocodeGenerator::simplify_type_name
         (std::string_view name) -> std::string_view
     {
-        return name == "size_t" ? "Integer" :
-               name == "int"    ? "Integer" :
-                                  name;
+        return name == "size_t" ? "int" : name;
     }
 
     auto PseudocodeGenerator::visit_decl
@@ -1447,7 +1455,6 @@ namespace fri
                 b->accept(*this);
                 out_->end_line();
             }
-            out_->blank_line();
         }
 
         out_->dec_indent();
@@ -1504,15 +1511,21 @@ namespace fri
         {
             name();
             out_->out("(");
-            out_->inc_indent();
+            if (not params.empty())
+            {
+                out_->inc_indent();
+            }
             out_->wrap_line();
             this->visit_range(params, [this]()
             {
                 out_->out(",");
                 out_->wrap_line();
             });
-            out_->dec_indent();
-            out_->wrap_line();
+            if (not params.empty())
+            {
+                out_->dec_indent();
+                out_->wrap_line();
+            }
             out_->out(")");
             type();
         };
@@ -1601,6 +1614,14 @@ namespace fri
         auto const column = dummyOutput.get_column();
         out_ = realOutput;
         return column;
+    }
+
+    auto PseudocodeGenerator::map_func_name
+        (std::string const& s) const -> std::string_view
+    {
+        namespace rs = std::ranges;
+        auto it = funcNames_.find(s);
+        return it == rs::end(funcNames_) ? s : (*it).second;
     }
 
     ForVarDefVisitor::ForVarDefVisitor
