@@ -232,7 +232,6 @@ namespace fri
     auto RtfCodePrinter::end_region
         () -> void
     {
-        // *ofst_ << R"(\page)" << '\n';
         this->blank_line();
     }
 
@@ -449,7 +448,6 @@ namespace fri
     auto NumberedCodePrinter::blank_line
         () -> void
     {
-        this->out_number();
         decoree_->blank_line();
     }
 
@@ -512,6 +510,7 @@ namespace fri
                    , {"swap", "vymeň"}
                    , {"memmove", "presuňPamäť"}
                    , {"memcpy", "skopírujPamäť"}
+                   , {"memcmp", "porovnajPamäť"}
                    , {"realloc", "zmeňVeľkosťPamäte"} }
     {
     }
@@ -588,7 +587,7 @@ namespace fri
         (MemberVarRef const& m) -> void
     {
         this->visit_member_base(*m.base_);
-        out_->out(m.name_, style_.memberVariable_);
+        out_->out(simplify_member_name(m.name_), style_.memberVariable_);
     }
 
     auto PseudocodeGenerator::visit
@@ -884,20 +883,22 @@ namespace fri
         for (auto const& constr : c.constructors_)
         {
             this->visit_def(c, constr);
+            out_->end_region();
         }
 
-        // Visit destructor.
+        // Visit destructor definitions.
         if (c.destructor_)
         {
             this->visit_def(c, *c.destructor_);
+            out_->end_region();
         }
 
         // Visit method definitions.
         for (auto const& method : c.methods_)
         {
             this->visit_def(c, method);
+            out_->end_region();
         }
-        out_->end_region();
     }
 
     auto PseudocodeGenerator::visit
@@ -957,15 +958,47 @@ namespace fri
     auto PseudocodeGenerator::visit
         (VarDefCommon const& f) -> void
     {
-        out_->out(f.name_, style_.variable_);
-        out_->out(": ");
-        f.type_->accept(*this);
-        if (f.initializer_)
+        using SingleLine = struct
         {
-            out_->out(" ");
-            out_->out(bin_op_to_string(BinOpcode::Assign));
-            out_->out(" ");
-            f.initializer_->accept(*this);
+            bool val;
+        };
+
+        auto const make_out = [this, &f](auto const singleLine)
+        {
+            return [this, singleLine, &f]()
+            {
+                out_->out(f.name_, style_.variable_);
+                out_->out(": ");
+                f.type_->accept(*this);
+                if (f.initializer_)
+                {
+                    out_->out(" ");
+                    out_->out(bin_op_to_string(BinOpcode::Assign));
+                    if (singleLine.val)
+                    {
+                        out_->out(" ");
+                        f.initializer_->accept(*this);
+                    }
+                    else
+                    {
+                        out_->inc_indent();
+                        out_->wrap_line();
+                        f.initializer_->accept(*this);
+                        out_->dec_indent();
+                    }
+                }
+            };
+        };
+
+        auto const out_inline = make_out(SingleLine {true});
+        auto const out_wrapped = make_out(SingleLine {false});
+        if (this->try_output_length(out_inline) > 75)
+        {
+            out_wrapped();
+        }
+        else
+        {
+            out_inline();
         }
     }
 
@@ -977,7 +1010,7 @@ namespace fri
                                                       : "vlastnosť "sv;
         out_->begin_line();
         out_->out(keyword, style_.keyword_);
-        out_->out(f.var_.name_, style_.memberVariable_);
+        out_->out(simplify_member_name(f.var_.name_), style_.memberVariable_);
         out_->out(": ");
         f.var_.type_->accept(*this);
         if (f.var_.initializer_)
@@ -1285,9 +1318,17 @@ namespace fri
     }
 
     auto PseudocodeGenerator::simplify_type_name
-        (std::string_view name) -> std::string_view
+        (std::string_view const name) -> std::string_view
     {
         return name == "size_t" ? "int" : name;
+    }
+
+    auto PseudocodeGenerator::simplify_member_name
+        (std::string_view const name) -> std::string_view
+    {
+        return name.ends_with("_")
+            ? name.substr(0, name.size() - 1)
+            : name;
     }
 
     auto PseudocodeGenerator::visit_decl
@@ -1397,7 +1438,7 @@ namespace fri
             for (auto const& i : con.initList_)
             {
                 out_->begin_line();
-                out_->out(i.name_, style_.memberVariable_);
+                out_->out(simplify_member_name(i.name_), style_.memberVariable_);
                 out_->out(" ");
                 out_->out(bin_op_to_string(BinOpcode::Assign));
                 out_->out(" ");

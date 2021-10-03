@@ -354,13 +354,14 @@ namespace fri
         auto out_var_name (std::string_view)     -> void;
 
     private:
-        static auto bin_op_to_string   (BinOpcode) -> std::string;
-        static auto un_op_to_string    (UnOpcode)  -> std::string;
-        static auto is_compound_op     (BinOpcode) -> bool;
-        static auto is_call            (UnOpcode)  -> bool;
-        static auto is_postfixx        (UnOpcode)  -> bool;
-        static auto is_bothtfix        (UnOpcode)  -> bool;
-        static auto simplify_type_name (std::string_view) -> std::string_view;
+        static auto bin_op_to_string     (BinOpcode) -> std::string;
+        static auto un_op_to_string      (UnOpcode)  -> std::string;
+        static auto is_compound_op       (BinOpcode) -> bool;
+        static auto is_call              (UnOpcode)  -> bool;
+        static auto is_postfixx          (UnOpcode)  -> bool;
+        static auto is_bothtfix          (UnOpcode)  -> bool;
+        static auto simplify_type_name   (std::string_view) -> std::string_view;
+        static auto simplify_member_name (std::string_view) -> std::string_view;
 
         auto visit_decl (Class const&, Method const&, IsInline)      -> void;
         auto visit_decl (Class const&, Constructor const&, IsInline) -> void;

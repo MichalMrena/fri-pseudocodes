@@ -499,13 +499,14 @@ namespace fri
 
     namespace
     {
-        constexpr auto Interfaces = { "AbstractMemoryType"
-                                    , "Table"
-                                    , "Stack"
-                                    , "Queue"
-                                    , "PriorityQueue"
-                                    , "List"
-                                    , "Array" };
+        constexpr auto Interfaces = { "AbstraktnýPamäťovýTyp"
+                                    , "AbstraktnýÚdajovýTyp"
+                                    , "Tabuľka"
+                                    , "Zásobník"
+                                    , "Front"
+                                    , "PrioritnýFront"
+                                    , "Zoznam"
+                                    , "Pole" };
 
         auto is_interface (std::string_view const name) -> bool
         {
