@@ -434,14 +434,15 @@ namespace fri
 
     struct Class : public Visitable<Class>
     {
-        std::string                        qualName_;
-        std::string                        name_;
-        std::vector<std::string>           templateParams_;
-        std::vector<Constructor>           constructors_;
-        std::optional<Destructor>          destructor_;
-        std::vector<Method>                methods_;
-        std::vector<FieldDefinition>       fields_;
-        std::vector<uptr<Type>> bases_;
+        std::string                  qualName_;
+        std::string                  name_;
+        std::optional<std::string>   alias_ {};
+        std::vector<std::string>     templateParams_;
+        std::vector<Constructor>     constructors_;
+        std::optional<Destructor>    destructor_;
+        std::vector<Method>          methods_;
+        std::vector<FieldDefinition> fields_;
+        std::vector<uptr<Type>>      bases_;
 
         Class (std::string qualName);
         auto name () const -> std::string;

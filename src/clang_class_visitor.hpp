@@ -15,11 +15,13 @@ namespace fri
                               , std::vector<std::unique_ptr<Class>>& classes
                               , std::vector<std::string> const& namespaces );
 
-        auto VisitCXXRecordDecl (clang::CXXRecordDecl* classDecl) -> bool;
+        auto VisitCXXRecordDecl (clang::CXXRecordDecl*) -> bool;
+        auto VisitTypeAliasTemplateDecl (clang::TypeAliasTemplateDecl*) -> bool;
 
     private:
-        auto get_base_name (clang::Type const*)  -> std::unique_ptr<Type>;
-        auto get_class     (std::string const&)  -> Class&;
+        auto get_base_name (clang::Type const*) -> std::unique_ptr<Type>;
+        auto get_class     (std::string const&) -> Class&;
+        auto try_get_class (std::string_view)   -> Class*;
         auto should_visit  (std::string_view qalName) const -> bool;
 
     private:

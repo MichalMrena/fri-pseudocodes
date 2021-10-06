@@ -173,6 +173,29 @@ namespace fri
         return true;
     }
 
+    auto ClassVisitor::VisitTypeAliasTemplateDecl
+        (clang::TypeAliasTemplateDecl* aliasDeclTemp) -> bool
+    {
+        auto const aliasDecl    = aliasDeclTemp->getTemplatedDecl();
+        auto const aliasName    = aliasDecl->getNameAsString();
+        auto const typePtr      = aliasDecl->getUnderlyingType().getTypePtr();
+        auto const originalName = [typePtr]()
+        {
+            if (auto const tst = clang::dyn_cast<clang::TemplateSpecializationType>(typePtr))
+            {
+                auto const temDecl = tst->getTemplateName().getAsTemplateDecl();
+                return temDecl ? temDecl->getNameAsString() : "<some template>";
+            }
+            return std::string("<unknown type>");
+        }();
+        auto const c = this->try_get_class(originalName);
+        if (c)
+        {
+            c->alias_ = aliasName;
+        }
+        return true;
+    }
+
     auto ClassVisitor::get_base_name
         (clang::Type const* t) -> std::unique_ptr<Type>
     {
@@ -217,6 +240,16 @@ namespace fri
         }
 
         return *classes_->emplace_back(std::make_unique<Class>(name));
+    }
+
+    auto ClassVisitor::try_get_class
+        (std::string_view const name) -> Class*
+    {
+        auto const it = std::find_if(std::begin(*classes_), std::end(*classes_), [name](auto const& c)
+        {
+            return c->qualName_.ends_with(name);
+        });
+        return it != std::end(*classes_) ? it->get() : nullptr;
     }
 
     auto ClassVisitor::should_visit

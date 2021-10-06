@@ -881,6 +881,14 @@ namespace fri
         out_->begin_line();
         out_->out("}");
         out_->end_line();
+        if (c.alias_)
+        {
+            out_->begin_line();
+            out_->out(c.name_, style_.customType_);
+            out_->out(" má skratku ", style_.keyword_);
+            out_->out(*c.alias_, style_.customType_);
+            out_->end_line();
+        }
         out_->end_region();
 
         // Visit constructor definitions.
@@ -996,7 +1004,7 @@ namespace fri
 
         auto const out_inline = make_out(SingleLine {true});
         auto const out_wrapped = make_out(SingleLine {false});
-        if (this->try_output_length(out_inline) > 75) // TODO minus indent...
+        if (this->try_output_length(out_inline) > 59)
         {
             out_wrapped();
         }
@@ -1238,9 +1246,9 @@ namespace fri
             case BinOpcode::And: return "∧";
             case BinOpcode::Or:  return "∨";
             case BinOpcode::LT:  return "<";
-            case BinOpcode::LE:  return "<=";
+            case BinOpcode::LE:  return "≤";
             case BinOpcode::GT:  return ">";
-            case BinOpcode::GE:  return ">=";
+            case BinOpcode::GE:  return "≥";
             case BinOpcode::EQ:  return "=";
             case BinOpcode::NE:  return "≠";
 

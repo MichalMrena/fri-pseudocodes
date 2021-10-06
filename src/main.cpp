@@ -279,3 +279,24 @@ int main(int argc, char** argv)
         c->accept(generator);
     }
 }
+
+// alias <T> = <U>
+// <T> je synonymum <U>
+// <T> je skratka <U>
+// <U> ma skratku <T>
+// 206 mohutnost parameter
+// shrink compact memory manager
+// equals, if (not (iny je typu <T>)) { return false }
+
+// function       normal 121  94  39
+// variable       normal   0  16 128
+// memberVariable italic   0  16 128
+// keyword        bold     0   0 255
+// controlKeyword bold   175   0 219
+// plain          normal   0   0   0
+// customType     normal  38 127 153
+// primType       normal   0   0 255
+// stringLiteral  normal 163  21  21
+// valLiteral     normal   0   0 255
+// numLiteral     normal   9 134  88
+// lineNumber     normal 100 100 100
