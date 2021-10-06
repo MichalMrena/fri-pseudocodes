@@ -784,6 +784,7 @@ namespace fri
         {
             out_->end_line();
             out_->inc_indent();
+            out_->inc_indent();
             out_->begin_line();
 
             out_->out("rozširuje ", style_.keyword_);
@@ -812,6 +813,7 @@ namespace fri
                 out_->end_line();
             }
             out_->dec_indent();
+            out_->dec_indent();
         }
 
         // Print base interfaces.
@@ -822,9 +824,10 @@ namespace fri
                 out_->end_line();
             }
             out_->inc_indent();
+            out_->inc_indent();
             out_->begin_line();
 
-            out_->out("implementuje ", style_.keyword_);
+            out_->out("realizuje ", style_.keyword_);
             auto const end = std::end(c.bases_);
             auto it = std::begin(c.bases_);
             while (it != end and not is_interface(**it))
@@ -844,6 +847,7 @@ namespace fri
                     out_->out(", ");
                 }
             }
+            out_->dec_indent();
             out_->dec_indent();
         }
 
@@ -992,7 +996,7 @@ namespace fri
 
         auto const out_inline = make_out(SingleLine {true});
         auto const out_wrapped = make_out(SingleLine {false});
-        if (this->try_output_length(out_inline) > 75)
+        if (this->try_output_length(out_inline) > 75) // TODO minus indent...
         {
             out_wrapped();
         }
@@ -1262,7 +1266,7 @@ namespace fri
             case UnOpcode::IncPost: return "++";
             case UnOpcode::DecPre:  return "--";
             case UnOpcode::DecPost: return "--";
-            case UnOpcode::LogNot:  return "nie ";
+            case UnOpcode::LogNot:  return "¬";
             case UnOpcode::Deref:   return "↓";
             case UnOpcode::Address: return "dajAdresu";
             case UnOpcode::ArNot:   return "-";
