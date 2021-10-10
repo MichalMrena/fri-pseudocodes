@@ -511,6 +511,8 @@ namespace fri
                    , {"memmove", "presuňPamäť"}
                    , {"memcpy", "skopírujPamäť"}
                    , {"memcmp", "porovnajPamäť"}
+                   , {"calloc", "alokujPamäť"}
+                   , {"malloc", "alokujPamäť"}
                    , {"realloc", "zmeňVeľkosťPamäte"} }
     {
     }

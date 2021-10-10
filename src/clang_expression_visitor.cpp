@@ -265,9 +265,16 @@ namespace fri
                 auto args   = make_args(c->arguments());
                 expression_ = std::make_unique<MemberFunctionCall>(std::move(base), std::move(name), std::move(args));
             }
-            else if (auto const v = clang::dyn_cast<clang::DeclRefExpr>(*fc)) // TODO zovšeobecniť na expression?
+            else if (auto const v = clang::dyn_cast<clang::DeclRefExpr>(*fc))
             {
-                expression_ = std::make_unique<ExpressionCall>(this->read_expression(*fc), make_args(c->arguments()));
+                if (clang::isa<clang::FunctionProtoType>(v->getType()))
+                {
+                    expression_ = std::make_unique<FunctionCall>(v->getNameInfo().getAsString(), make_args(c->arguments()));
+                }
+                else
+                {
+                    expression_ = std::make_unique<ExpressionCall>(this->read_expression(*fc), make_args(c->arguments()));
+                }
             }
             else if (auto const ic = clang::dyn_cast<clang::ImplicitCastExpr>(*fc))
             {
