@@ -1434,7 +1434,7 @@ namespace fri
                 auto const baseName = base.base_->to_string();
 
                 out_->begin_line();
-                if (baseName.starts_with(c.name_))
+                if (baseName.starts_with(c.name_)) // TODO or is alias
                 {
                     out_->out("inicializuj ", style_.keyword_);
                 }

@@ -77,6 +77,27 @@ namespace fri
             }
         }
 
+        // Read static variables.
+        for (auto const& tdeclit : classDecl->decls())
+        {
+            auto const tdecl = &*tdeclit;
+            if (auto const varDecl = clang::dyn_cast<clang::VarDecl>(tdecl))
+            {
+                auto type = extract_type(context_->getPrintingPolicy(), varDecl->getType(), expressioner_);
+                if (varDecl->getInit())
+                {
+                    c.fields_.emplace_back( std::move(type)
+                                          , varDecl->getNameAsString()
+                                          , expressioner_.read_expression(varDecl->getInit()) );
+                }
+                else
+                {
+                    c.fields_.emplace_back( std::move(type)
+                                          , varDecl->getNameAsString() );
+                }
+            }
+        }
+
         // Read all methods.
         for (auto const methodPtr : classDecl->methods())
         {

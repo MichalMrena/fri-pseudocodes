@@ -217,26 +217,41 @@ namespace fri
                         ? expressioner_.read_expression(*swCase->child_begin())
                         : std::unique_ptr<Expression>();
 
-                    auto caseBody = std::vector<uptr<Statement>>();
-
-                    if (swCase->getSubStmt())
+                    auto const subStmt = swCase->getSubStmt();
+                    if (auto const compoundSub = clang::dyn_cast<clang::CompoundStmt>(subStmt))
                     {
-                        caseBody.emplace_back(this->read_statement(swCase->getSubStmt()));
-                    }
-                    ++cit; // subStmt
-                    while (cit != end and not (clang::isa<clang::CaseStmt>(*cit) or clang::isa<clang::DefaultStmt>(*cit)))
-                    {
-                        if (not clang::isa<clang::BreakStmt>(*cit))
-                        {
-                            auto stmt = this->read_statement(*cit);
-                            if (stmt)
-                            {
-                                caseBody.emplace_back(std::move(stmt));
-                            }
-                        }
+                        this->VisitCompoundStmt(compoundSub);
+                        cases.emplace_back(std::move(caseExpr), std::move(*this->release_compound()));
                         ++cit;
                     }
-                    cases.emplace_back(std::move(caseExpr), std::move(caseBody));
+                    else if (subStmt)
+                    {
+                        auto caseBody = std::vector<uptr<Statement>>();
+                        caseBody.emplace_back(this->read_statement(subStmt));
+                        ++cit;
+
+                        while (cit != end and not (clang::isa<clang::CaseStmt>(*cit) or clang::isa<clang::DefaultStmt>(*cit)))
+                        {
+                            if (not clang::isa<clang::BreakStmt>(*cit))
+                            {
+                                auto stmt = this->read_statement(*cit);
+                                if (stmt)
+                                {
+                                    caseBody.emplace_back(std::move(stmt));
+                                }
+                            }
+                            ++cit;
+                        }
+                        cases.emplace_back(std::move(caseExpr), std::move(caseBody));
+                    }
+                    else // TODO empty case, subStmt might asctually be next case?
+                    {
+                        cases.emplace_back(std::move(caseExpr), CompoundStatement(std::vector<uptr<Statement>>()));
+                        while (cit != end)
+                        {
+                            ++cit;
+                        }
+                    }
                 }
                 else if (auto const swDefault = clang::dyn_cast<clang::DefaultStmt>(*cit))
                 {

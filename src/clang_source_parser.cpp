@@ -85,7 +85,7 @@ namespace fri
         (std::string const& code) -> TranslationUnit
     {
         auto cs   = std::vector<std::unique_ptr<Class>>();
-        auto args = std::vector<std::string> {"-O0", "-I/usr/local/lib/clang/13.0.0/include"};
+        auto args = std::vector<std::string> {"-Wno-non-pod-varargs", "-O0", "-I/usr/local/lib/clang/13.0.0/include"};
         auto ns   = std::vector<std::string> {"mm", "adt", "amt"};
         clang::tooling::runToolOnCodeWithArgs(std::make_unique<FindClassAction>(cs, ns), code, args);
         return TranslationUnit(std::move(cs));

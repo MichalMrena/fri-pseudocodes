@@ -499,9 +499,7 @@ namespace fri
 
     namespace
     {
-        constexpr auto Interfaces = { "AbstraktnýPamäťovýTyp"
-                                    , "AbstraktnýÚdajovýTyp"
-                                    , "Tabuľka"
+        constexpr auto Interfaces = { "Tabuľka"
                                     , "Zásobník"
                                     , "Front"
                                     , "PrioritnýFront"
