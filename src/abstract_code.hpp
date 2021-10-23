@@ -432,6 +432,13 @@ namespace fri
               , std::optional<CompoundStatement> );
     };
 
+    struct AliasDecl
+    {
+        uptr<Type>  type_;
+        std::string alias_;
+        AliasDecl (uptr<Type>, std::string);
+    };
+
     struct Class : public Visitable<Class>
     {
         std::string                  qualName_;
@@ -443,6 +450,7 @@ namespace fri
         std::vector<Method>          methods_;
         std::vector<FieldDefinition> fields_;
         std::vector<uptr<Type>>      bases_;
+        std::vector<AliasDecl>       typedefs_;
 
         Class (std::string qualName);
         auto name () const -> std::string;

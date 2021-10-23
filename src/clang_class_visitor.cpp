@@ -98,6 +98,16 @@ namespace fri
             }
         }
 
+        // Read typedefs.
+        for (auto const decl : classDecl->decls())
+        {
+            if (auto const aliasDecl = clang::dyn_cast<clang::TypedefDecl>(decl))
+            {
+                c.typedefs_.emplace_back( extract_type(context_->getPrintingPolicy(), aliasDecl->getUnderlyingType(), expressioner_)
+                                        , aliasDecl->getNameAsString() );
+            }
+        }
+
         // Read all methods.
         for (auto const methodPtr : classDecl->methods())
         {

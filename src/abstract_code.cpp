@@ -485,6 +485,13 @@ namespace fri
     {
     }
 
+    AliasDecl::AliasDecl
+        (uptr<Type> t, std::string a) :
+        type_ (std::move(t)),
+        alias_ (std::move(a))
+    {
+    }
+
     Class::Class
         (std::string qualName) :
         qualName_ (std::move(qualName))
@@ -499,7 +506,8 @@ namespace fri
 
     namespace
     {
-        constexpr auto Interfaces = { "Tabuľka"
+        constexpr auto Interfaces = { "AbstraktnýPamäťovýTyp"
+                                    , "Tabuľka"
                                     , "Zásobník"
                                     , "Front"
                                     , "PrioritnýFront"

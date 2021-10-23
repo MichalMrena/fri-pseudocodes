@@ -506,7 +506,7 @@ namespace fri
         (ICodePrinter& out, CodeStyleInfo style) :
         out_       (&out),
         style_     (std::move(style)),
-        funcNames_ { {"free", "zruš"}
+        funcNames_ { {"free", "vráťPamäť"}
                    , {"swap", "vymeň"}
                    , {"memmove", "presuňPamäť"}
                    , {"memcpy", "skopírujPamäť"}
@@ -646,18 +646,10 @@ namespace fri
     auto PseudocodeGenerator::visit
         (FunctionCall const& c) -> void
     {
-        if (c.name_ == "free")
-        {
-            out_->out("zruš ", style_.keyword_);
-            this->visit_args(c.args_);
-        }
-        else
-        {
-            out_->out(this->map_func_name(c.name_), style_.function_);
-            out_->out("(");
-            this->visit_args(c.args_);
-            out_->out(")");
-        }
+        out_->out(this->map_func_name(c.name_), style_.function_);
+        out_->out("(");
+        this->visit_args(c.args_);
+        out_->out(")");
     }
 
     auto PseudocodeGenerator::visit
@@ -779,7 +771,8 @@ namespace fri
         {
             return not is_interface(*t);
         });
-        auto const interfaceCount = c.bases_.size() - static_cast<std::size_t>(baseCount);
+        auto const interfaceCount = c.bases_.size()
+                                  - static_cast<std::size_t>(baseCount);
 
         // Print base classes.
         if (baseCount)
@@ -787,9 +780,7 @@ namespace fri
             out_->end_line();
             out_->inc_indent();
             out_->inc_indent();
-            out_->begin_line();
 
-            out_->out("rozširuje ", style_.keyword_);
             auto const end = std::end(c.bases_);
             auto it = std::begin(c.bases_);
             while (it != end and is_interface(**it))
@@ -798,22 +789,21 @@ namespace fri
             }
             while (it != end)
             {
+                out_->begin_line();
+                out_->out("rozširuje ", style_.keyword_);
                 (*it)->accept(*this);
                 ++it;
                 while (it != end and is_interface(**it))
                 {
                     ++it;
                 }
-                if (it != end)
+                if (it != end || c.alias_ || interfaceCount)
                 {
-                    out_->out(", ");
+                    out_->out(",");
+                    out_->end_line();
                 }
             }
 
-            if (interfaceCount)
-            {
-                out_->end_line();
-            }
             out_->dec_indent();
             out_->dec_indent();
         }
@@ -827,9 +817,7 @@ namespace fri
             }
             out_->inc_indent();
             out_->inc_indent();
-            out_->begin_line();
 
-            out_->out("realizuje ", style_.keyword_);
             auto const end = std::end(c.bases_);
             auto it = std::begin(c.bases_);
             while (it != end and not is_interface(**it))
@@ -838,31 +826,69 @@ namespace fri
             }
             while (it != end)
             {
+                out_->begin_line();
+                out_->out("realizuje ", style_.keyword_);
                 (*it)->accept(*this);
                 ++it;
                 while (it != end and not is_interface(**it))
                 {
                     ++it;
                 }
-                if (it != end)
+                if (it != end || c.alias_)
                 {
                     out_->out(", ");
+                    out_->end_line();
                 }
             }
             out_->dec_indent();
             out_->dec_indent();
         }
 
+        // Print class alias.
+        if (c.alias_)
+        {
+            if (not baseCount and not interfaceCount)
+            {
+                out_->end_line();
+            }
+            out_->inc_indent();
+            out_->inc_indent();
+            out_->begin_line();
+            out_->out("má skratku ", style_.keyword_);
+            out_->out(*c.alias_, style_.customType_);
+        }
+
         // Begin class member definitions / declarations.
         out_->out(" {");
         out_->end_line();
+        if (c.alias_)
+        {
+            out_->dec_indent();
+            out_->dec_indent();
+        }
         out_->inc_indent();
+
+        // Visit typedefs.
+        for (auto const& tpdef : c.typedefs_)
+        {
+            out_->begin_line();
+            tpdef.type_->accept(*this);
+            out_->out(" má skratku ", style_.keyword_);
+            out_->out(tpdef.alias_, style_.customType_);
+            out_->end_line();
+        }
 
         // Visit constructor declarations.
         for (auto const& con : c.constructors_)
         {
             this->visit_decl(c, con, IsInline::Inline);
             out_->end_line();
+        }
+
+        // Visit destructor declaration.
+        if (c.destructor_)
+        {
+            this->visit_decl(c, *c.destructor_);
         }
 
         // Visit method declarations.
@@ -883,14 +909,6 @@ namespace fri
         out_->begin_line();
         out_->out("}");
         out_->end_line();
-        if (c.alias_)
-        {
-            out_->begin_line();
-            out_->out(c.name_, style_.customType_);
-            out_->out(" má skratku ", style_.keyword_);
-            out_->out(*c.alias_, style_.customType_);
-            out_->end_line();
-        }
         out_->end_region();
 
         // Visit constructor definitions.
@@ -1006,7 +1024,7 @@ namespace fri
 
         auto const out_inline = make_out(SingleLine {true});
         auto const out_wrapped = make_out(SingleLine {false});
-        if (this->try_output_length(out_inline) > 59)
+        if (this->try_output_length(out_inline) > 53)
         {
             out_wrapped();
         }
@@ -1122,7 +1140,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (DestructorCall const& d) -> void
     {
-        out_->out("deštrutktor ", style_.keyword_);
+        out_->out("zruš ", style_.keyword_);
         d.ex_->accept(*this);
     }
 
@@ -1354,7 +1372,14 @@ namespace fri
             out_->out("operácia ", style_.keyword_);
             if (isIn == IsInline::NoInline)
             {
-                this->visit_class_name(c);
+                if (c.alias_)
+                {
+                    out_->out(*c.alias_, style_.customType_);
+                }
+                else
+                {
+                    this->visit_class_name(c);
+                }
                 out_->out(".");
             }
             out_->out(m.name_, style_.function_);
@@ -1382,7 +1407,14 @@ namespace fri
             if (isIn == IsInline::NoInline)
             {
                 out_->out(" ");
-                this->visit_class_name(c);
+                if (c.alias_)
+                {
+                    out_->out(*c.alias_, style_.customType_);
+                }
+                else
+                {
+                    this->visit_class_name(c);
+                }
             }
         };
 
@@ -1392,7 +1424,10 @@ namespace fri
     auto PseudocodeGenerator::visit_decl
         (Class const&, Destructor const&) -> void
     {
+        out_->begin_line();
         out_->out("deštruktor ", style_.keyword_);
+        out_->out("()", style_.plain_);
+        out_->end_line();
     }
 
     auto PseudocodeGenerator::visit_def
@@ -1434,7 +1469,7 @@ namespace fri
                 auto const baseName = base.base_->to_string();
 
                 out_->begin_line();
-                if (baseName.starts_with(c.name_)) // TODO or is alias
+                if (baseName.starts_with(c.name_)or (c.alias_ and baseName.starts_with(*c.alias_)))
                 {
                     out_->out("inicializuj ", style_.keyword_);
                 }
@@ -1485,7 +1520,14 @@ namespace fri
 
         out_->begin_line();
         out_->out("deštruktor ", style_.keyword_);
-        this->visit_class_name(c);
+        if (c.alias_)
+        {
+            out_->out(*c.alias_, style_.customType_);
+        }
+        else
+        {
+            this->visit_class_name(c);
+        }
 
         out_->out(" {");
         out_->inc_indent();
@@ -1586,7 +1628,7 @@ namespace fri
         };
 
         auto const col = this->try_output_length(out_single_line);
-        if (col > 75)
+        if (col > 74)
         {
             out_multi_line();
         }
