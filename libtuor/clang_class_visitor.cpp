@@ -240,11 +240,17 @@ namespace fri
             auto temDecl = tst->getTemplateName().getAsTemplateDecl();
             auto name = temDecl ? temDecl->getNameAsString() : "<some template>";
             auto args = std::vector<variant_t>();
-            auto const argc = tst->getNumArgs();
-            for (auto i = 0u; i < argc; ++i)
+            // auto const argc = tst->getNumArgs();
+            auto const templateArgs = tst->template_arguments();
+            for (auto arg : templateArgs)
             {
-                auto const arg = tst->getArg(i);
-                args.emplace_back(extract_type(context_->getPrintingPolicy(), arg.getAsType(), expressioner_));
+                // auto const arg = tst->getArg(i);
+                args.emplace_back(
+                    extract_type(
+                        context_->getPrintingPolicy(),
+                        arg.getAsType(),
+                        expressioner_
+                ));
             }
             return std::make_unique<TemplatedType>( IsConst(false)
                                                   , std::make_unique<CustomType>(IsConst(false), name)

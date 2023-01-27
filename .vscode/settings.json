@@ -96,7 +96,8 @@
         "__tuple": "cpp",
         "semaphore": "cpp",
         "numbers": "cpp",
-        "*.inc": "cpp"
+        "*.inc": "cpp",
+        "__verbose_abort": "cpp"
     },
     "python.linting.enabled": true
 }

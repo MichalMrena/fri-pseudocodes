@@ -599,6 +599,7 @@ namespace fri
     template<class T, class U>
     auto isa (U const& u) -> bool
     {
+        // TODO nedal by sa tu pouzit std::invoke?
         auto v = IsaVisitor<T>();
         if constexpr (std::is_pointer_v<U> or is_smart_pointer_v<U>)
         {

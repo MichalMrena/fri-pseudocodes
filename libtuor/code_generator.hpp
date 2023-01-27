@@ -1,7 +1,9 @@
 #ifndef FRI_CODE_GENERATOR_HPP
 #define FRI_CODE_GENERATOR_HPP
 
+#include <libtuor/types.hpp>
 #include "abstract_code.hpp"
+#include "types.hpp"
 
 #include <cstdint>
 #include <fstream>
@@ -16,27 +18,29 @@ namespace fri
      */
     struct Color
     {
-        std::uint8_t r_ {};
-        std::uint8_t g_ {};
-        std::uint8_t b_ {};
+        int32 r_ {};
+        int32 g_ {};
+        int32 b_ {};
     };
 
-    auto to_string  (Color const& c) -> std::string;
-    auto operator== (Color const&, Color const&) -> bool;
-    auto operator!= (Color const&, Color const&) -> bool;
+    auto to_string  (Color c) -> std::string;
+    auto operator== (Color l, Color r) -> bool;
+    auto operator!= (Color l, Color r) -> bool;
 
     /**
      *  @brief Font style.
      */
     enum class FontStyle
     {
-        Normal, Bold, Italic
+        Normal,
+        Bold,
+        Italic
     };
 
     /**
      *  @brief Text style.
      */
-    struct TextStyle
+    struct TokenStyle
     {
         Color color_ {};
         FontStyle style_ {FontStyle::Normal};
@@ -45,21 +49,23 @@ namespace fri
     /**
      *  @brief Style of different parts of code.
      */
-    struct CodeStyleInfo
+    struct CodeStyle
     {
-        TextStyle function_       {Color {}, FontStyle::Normal};
-        TextStyle variable_       {Color {}, FontStyle::Normal};
-        TextStyle memberVariable_ {Color {}, FontStyle::Normal};
-        TextStyle keyword_        {Color {}, FontStyle::Normal};
-        TextStyle controlKeyword_ {Color {}, FontStyle::Normal};
-        TextStyle plain_          {Color {}, FontStyle::Normal};
-        TextStyle customType_     {Color {}, FontStyle::Normal};
-        TextStyle primType_       {Color {}, FontStyle::Normal};
-        TextStyle stringLiteral_  {Color {}, FontStyle::Normal};
-        TextStyle valLiteral_     {Color {}, FontStyle::Normal};
-        TextStyle numLiteral_     {Color {}, FontStyle::Normal};
-        TextStyle lineNumber_     {Color {}, FontStyle::Normal};
+        TokenStyle function_       {Color {}, FontStyle::Normal};
+        TokenStyle variable_       {Color {}, FontStyle::Normal};
+        TokenStyle memberVariable_ {Color {}, FontStyle::Normal};
+        TokenStyle keyword_        {Color {}, FontStyle::Normal};
+        TokenStyle controlKeyword_ {Color {}, FontStyle::Normal};
+        TokenStyle plain_          {Color {}, FontStyle::Normal};
+        TokenStyle customType_     {Color {}, FontStyle::Normal};
+        TokenStyle primType_       {Color {}, FontStyle::Normal};
+        TokenStyle stringLiteral_  {Color {}, FontStyle::Normal};
+        TokenStyle valLiteral_     {Color {}, FontStyle::Normal};
+        TokenStyle numLiteral_     {Color {}, FontStyle::Normal};
+        TokenStyle lineNumber_     {Color {}, FontStyle::Normal};
     };
+
+
 
     /**
      *  @brief Output settings.
@@ -69,7 +75,7 @@ namespace fri
         unsigned int  fontSize = 9;
         unsigned int  indentSpaces = 2;
         std::string   font {"Consolas"};
-        CodeStyleInfo style {};
+        CodeStyle style {};
     };
 
     /**
@@ -127,12 +133,12 @@ namespace fri
         /**
          *  @brief Prints string to the output using given style if possible.
          */
-        virtual auto out (std::string_view, TextStyle const&) -> ICodePrinter& = 0;
+        virtual auto out (std::string_view, TokenStyle const&) -> ICodePrinter& = 0;
 
         /**
          *  @brief Current state of indentation.
          */
-        virtual auto current_indent () const -> IndentState = 0;
+        virtual auto current_indent () const -> IndentState = 0; // TODO const ref?
 
         /**
          *  @brief Ends the current region e.g. page.
@@ -180,7 +186,7 @@ namespace fri
         auto end_region () -> void override;
 
         auto out (std::string_view) -> ConsoleCodePrinter& override;
-        auto out (std::string_view, TextStyle const&) -> ConsoleCodePrinter& override;
+        auto out (std::string_view, TokenStyle const&) -> ConsoleCodePrinter& override;
 
     private:
         using base = CommonCodePrinter;
@@ -205,7 +211,7 @@ namespace fri
         auto end_region () -> void override;
 
         auto out (std::string_view) -> RtfCodePrinter& override;
-        auto out (std::string_view, TextStyle const&) -> RtfCodePrinter& override;
+        auto out (std::string_view, TokenStyle const&) -> RtfCodePrinter& override;
 
 
     private:
@@ -238,7 +244,7 @@ namespace fri
         auto end_region () -> void override;
 
         auto out (std::string_view) -> DummyCodePrinter& override;
-        auto out (std::string_view, TextStyle const&) -> DummyCodePrinter& override;
+        auto out (std::string_view, TokenStyle const&) -> DummyCodePrinter& override;
 
         auto get_column () const -> std::size_t;
 
@@ -255,7 +261,7 @@ namespace fri
     class NumberedCodePrinter : public ICodePrinter
     {
     public:
-        NumberedCodePrinter(ICodePrinter&, std::size_t, TextStyle);
+        NumberedCodePrinter(ICodePrinter&, std::size_t, TokenStyle);
 
         auto inc_indent () -> void override;
         auto dec_indent () -> void override;
@@ -266,7 +272,7 @@ namespace fri
         auto end_region () -> void override;
 
         auto out (std::string_view) -> NumberedCodePrinter& override;
-        auto out (std::string_view, TextStyle const&) -> NumberedCodePrinter& override;
+        auto out (std::string_view, TokenStyle const&) -> NumberedCodePrinter& override;
 
         auto current_indent () const -> IndentState override;
 
@@ -281,7 +287,7 @@ namespace fri
     private:
         ICodePrinter*     decoree_;
         std::size_t const numWidth_;
-        TextStyle const   numStyle_;
+        TokenStyle const   numStyle_;
         std::size_t       currentNum_;
     };
 
@@ -302,7 +308,7 @@ namespace fri
     class PseudocodeGenerator : public CodeVisitor
     {
     public:
-        PseudocodeGenerator (ICodePrinter&, CodeStyleInfo);
+        PseudocodeGenerator (ICodePrinter&, CodeStyle);
 
         auto visit (IntLiteral const&)           -> void override;
         auto visit (FloatLiteral const&)         -> void override;
@@ -384,7 +390,7 @@ namespace fri
         auto visit_decl (OutputName&&, std::vector<ParamDefinition> const&, OutputType&&) -> void;
 
         template<class Range>
-        auto output_range (Range&&, std::string_view, TextStyle const&) -> void;
+        auto output_range (Range&&, std::string_view, TokenStyle const&) -> void;
 
         auto visit_args (std::vector<std::unique_ptr<Expression>> const&) -> void;
 
@@ -407,7 +413,7 @@ namespace fri
 
     private:
         ICodePrinter* out_;
-        CodeStyleInfo style_;
+        CodeStyle style_;
         std::unordered_map<std::string, std::string> funcNames_;
     };
 

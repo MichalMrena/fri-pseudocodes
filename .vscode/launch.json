@@ -5,8 +5,13 @@
              "name": "(gdb) Launch",
              "type": "cppdbg",
              "request": "launch",
-             "program": "${workspaceFolder}/input/generate-pseudocode",
-             "args": ["input/test.cpp"],
+             "program": "${workspaceFolder}/build/debug/tuor/tuor",
+             "args": [
+                "-i", "~/projects/fri-pseudocodes/tuor/main.cpp",
+                "-o", "~/projects",
+                "-t", "rtf",
+                "-s", "~/projects/fri-pseudocodes/style.ini"
+             ],
              "stopAtEntry": false,
              "cwd": "${workspaceFolder}",
              "environment": [],
@@ -16,7 +21,7 @@
              "setupCommands": [
                 {
                     "description": "Test",
-                    "text": "python import sys;sys.path.insert(0, '/usr/share/gcc/python');from libstdcxx.v6.printers import register_libstdcxx_printers;register_libstdcxx_printers(None)",
+                    "text": "python import sys;sys.path.insert(0, '/usr/share/gcc-12/python');from libstdcxx.v6.printers import register_libstdcxx_printers;register_libstdcxx_printers(None)",
                     "ignoreFailures": false
                 },
                 {

@@ -2,6 +2,7 @@
 #include "code_generator.hpp"
 #include "utils.hpp"
 
+#include <boost/program_options.hpp>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -30,19 +31,19 @@ namespace
     auto console_dummy_settings()
     {
         auto ret = fri::OutputSettings {};
-        ret.style = fri::CodeStyleInfo
-            { .function_       = fri::TextStyle {fri::Color {255, 255, 0  }, fri::FontStyle::Normal}
-            , .variable_       = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
-            , .memberVariable_ = fri::TextStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
-            , .keyword_        = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
-            , .controlKeyword_ = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
-            , .plain_          = fri::TextStyle {fri::Color {255, 255, 255}, fri::FontStyle::Normal}
-            , .customType_     = fri::TextStyle {fri::Color {0,   255, 0  }, fri::FontStyle::Normal}
-            , .primType_       = fri::TextStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
-            , .stringLiteral_  = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal}
-            , .valLiteral_     = fri::TextStyle {fri::Color {255, 0,   255}, fri::FontStyle::Normal}
-            , .numLiteral_     = fri::TextStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal}
-            , .lineNumber_     = fri::TextStyle {fri::Color {255, 255, 255}, fri::FontStyle::Normal} };
+        ret.style = fri::CodeStyle
+            { .function_       = fri::TokenStyle {fri::Color {255, 255, 0  }, fri::FontStyle::Normal}
+            , .variable_       = fri::TokenStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
+            , .memberVariable_ = fri::TokenStyle {fri::Color {0,   255, 255}, fri::FontStyle::Normal}
+            , .keyword_        = fri::TokenStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
+            , .controlKeyword_ = fri::TokenStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
+            , .plain_          = fri::TokenStyle {fri::Color {255, 255, 255}, fri::FontStyle::Normal}
+            , .customType_     = fri::TokenStyle {fri::Color {0,   255, 0  }, fri::FontStyle::Normal}
+            , .primType_       = fri::TokenStyle {fri::Color {0,   0,   255}, fri::FontStyle::Normal}
+            , .stringLiteral_  = fri::TokenStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal}
+            , .valLiteral_     = fri::TokenStyle {fri::Color {255, 0,   255}, fri::FontStyle::Normal}
+            , .numLiteral_     = fri::TokenStyle {fri::Color {255, 0,   0  }, fri::FontStyle::Normal}
+            , .lineNumber_     = fri::TokenStyle {fri::Color {255, 255, 255}, fri::FontStyle::Normal} };
         return ret;
     }
 
@@ -63,7 +64,7 @@ namespace
         };
 
         auto settings = fri::OutputSettings();
-        auto styleMap = std::unordered_map<std::string, fri::TextStyle>();
+        auto styleMap = std::unordered_map<std::string, fri::TokenStyle>();
         auto line = std::string();
         while (std::getline(ifst, line))
         {
@@ -141,7 +142,7 @@ namespace
                     auto const b = fri::parse<std::uint8_t>(styleWords[4]);
                     if (r and g and b)
                     {
-                        styleMap.emplace(styleTarget, fri::TextStyle {fri::Color {r, g, b}, s});
+                        styleMap.emplace(styleTarget, fri::TokenStyle {fri::Color {r, g, b}, s});
                     }
                     else
                     {
@@ -158,7 +159,7 @@ namespace
                 {
                     auto const it = cMap.find(name);
                     return it == std::end(cMap)
-                        ? fri::TextStyle {fri::Color {0, 0, 0}, fri::FontStyle::Normal}
+                        ? fri::TokenStyle {fri::Color {0, 0, 0}, fri::FontStyle::Normal}
                         : it->second;
                 };
 
@@ -170,7 +171,7 @@ namespace
                 else
                 {
                     settings.style =
-                        fri::CodeStyleInfo
+                        fri::CodeStyle
                         { .function_       = style_or_default(styleMap, "function")
                         , .variable_       = style_or_default(styleMap, "variable")
                         , .memberVariable_ = style_or_default(styleMap, "memberVariable")
@@ -253,7 +254,7 @@ int main(int argc, char** argv)
     auto ofstOpt = output_file(outputMode, argv);
 
     // Check if the output file is set and writable.
-    if (ofstOpt.has_value() and not ofstOpt.value().is_open())
+    if (ofstOpt.has_value() && not ofstOpt.value().is_open())
     {
         std::cerr << "Failed to open output file: " << argv[2] << '\n';
         return 1;

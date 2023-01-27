@@ -13,7 +13,7 @@ namespace fri
 {
 // Color definitions:
 
-    auto to_string (Color const& c) -> std::string
+    auto to_string (Color const c) -> std::string
     {
         auto res = std::string("Color(");
         res += std::to_string(c.r_);
@@ -25,14 +25,14 @@ namespace fri
         return res;
     }
 
-    auto operator== (Color const& l, Color const& r) -> bool
+    auto operator== (Color const l, Color const r) -> bool
     {
         return l.r_ == r.r_
            and l.g_ == r.g_
            and l.b_ == r.b_;
     }
 
-    auto operator!= (Color const& l, Color const& r) -> bool
+    auto operator!= (Color const l, Color const r) -> bool
     {
         return not (l == r);
     }
@@ -123,7 +123,7 @@ namespace fri
     }
 
     auto ConsoleCodePrinter::out
-        (std::string_view s, TextStyle const& st) -> ConsoleCodePrinter&
+        (std::string_view s, TokenStyle const& st) -> ConsoleCodePrinter&
     {
         this->set_color(st.color_);
         std::cout << s;
@@ -157,7 +157,7 @@ namespace fri
     }
 
     template<class Op>
-    auto for_each_color (CodeStyleInfo const& st, Op&& op)
+    auto for_each_color (CodeStyle const& st, Op&& op)
     {
         op(st.function_.color_);
         op(st.variable_.color_);
@@ -243,7 +243,7 @@ namespace fri
     }
 
     auto RtfCodePrinter::out
-        (std::string_view s, TextStyle const& st) -> RtfCodePrinter&
+        (std::string_view s, TokenStyle const& st) -> RtfCodePrinter&
     {
         this->begin_color(st.color_);
         this->begin_style(st.style_);
@@ -388,7 +388,7 @@ namespace fri
     }
 
     auto DummyCodePrinter::out
-        (std::string_view const s, TextStyle const&) -> DummyCodePrinter&
+        (std::string_view const s, TokenStyle const&) -> DummyCodePrinter&
     {
         this->out(s);
         return *this;
@@ -403,7 +403,7 @@ namespace fri
 // NumberedCodePrinter definitions:
 
     NumberedCodePrinter::NumberedCodePrinter
-        (ICodePrinter& d, std::size_t const w, TextStyle s) :
+        (ICodePrinter& d, std::size_t const w, TokenStyle s) :
         decoree_    {&d},
         numWidth_   {w},
         numStyle_   {s},
@@ -466,7 +466,7 @@ namespace fri
     }
 
     auto NumberedCodePrinter::out
-        (std::string_view const s, TextStyle const& st) -> NumberedCodePrinter&
+        (std::string_view const s, TokenStyle const& st) -> NumberedCodePrinter&
     {
         decoree_->out(s, st);
         return *this;
@@ -503,7 +503,7 @@ namespace fri
 // PseudocodeGenerator definitions:
 
     PseudocodeGenerator::PseudocodeGenerator
-        (ICodePrinter& out, CodeStyleInfo style) :
+        (ICodePrinter& out, CodeStyle style) :
         out_       (&out),
         style_     (std::move(style)),
         funcNames_ { {"free", "vráťPamäť"}
@@ -1640,7 +1640,7 @@ namespace fri
 
     template<class Range>
     auto PseudocodeGenerator::output_range
-        (Range&& xs, std::string_view glue, TextStyle const& s) -> void
+        (Range&& xs, std::string_view glue, TokenStyle const& s) -> void
     {
         auto const end = std::end(xs);
         auto it = std::begin(xs);

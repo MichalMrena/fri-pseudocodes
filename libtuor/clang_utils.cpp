@@ -44,9 +44,10 @@ namespace fri
             auto temDecl = tem->getTemplateName().getAsTemplateDecl();
             auto name = temDecl ? temDecl->getNameAsString() : "<some template>";
             auto args = std::vector<variant_t>();
-            for (auto i = 0u; i < tem->getNumArgs(); ++i)
+            auto templateArgs = tem->template_arguments();
+            for (auto arg : templateArgs)
             {
-                auto const arg = tem->getArg(i);
+                // auto const arg = tem->getArg(i);
                 switch (arg.getKind())
                 {
                     case clang::TemplateArgument::ArgKind::Type:
