@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <iosfwd>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -117,36 +118,176 @@ namespace fri
     };
 
     /**
+     *  @brief Describes actual state of indentation in a code printer.
+     */
+    struct IndentState
+    {
+        int64 spaceCount_;
+        int64 currentLevel_;
+    };
+
+    /**
      *  @brief Interface for code outputters.
      */
     class ICodeOutputter
     {
     public:
         virtual ~ICodeOutputter () = default;
+
+        /**
+         *  @brief Increase current indentation.
+         */
+        virtual auto inc_indent () -> void = 0;
+
+        /**
+         *  @brief Decrease current indentation.
+         */
+        virtual auto dec_indent () -> void = 0;
+
+        /**
+         *  @brief Adds indentation characters to the output.
+         */
+        virtual auto begin_line () -> void = 0;
+
+        /**
+         *  @brief Terminates current line and jumps to the next line.
+         */
+        virtual auto end_line () -> void = 0;
+
+        /**
+         *  @brief Outputs an empty line.
+         */
+        virtual auto blank_line () -> void = 0;
+
+        /**
+         *  @brief Jumps to the next line with the same indent.
+         */
+        virtual auto wrap_line () -> void = 0;
+
+        /**
+         *  @brief Prints string to the output.
+         */
+        virtual auto out (std::string_view token) -> ICodeOutputter& = 0;
+
+        /**
+         *  @brief Prints string to the output using given style if possible.
+         */
+        virtual auto out
+            (std::string_view token , TokenType type) -> ICodeOutputter& = 0;
+
+        /**
+         *  @brief Current state of indentation.
+         */
+        virtual auto get_current_indent () const -> IndentState = 0;
+
+        /**
+         *  @brief Ends the current region e.g. page.
+         */
+        virtual auto end_region () -> void = 0;
+    };
+
+    /**
+     *  @brief Code outputter that manages indentation.
+     */
+    class IndentingCodeOutputter : public ICodeOutputter
+    {
+    public:
+        IndentingCodeOutputter(CodeStyle const& style);
+
+        auto inc_indent () -> void override;
+
+        auto dec_indent () -> void override;
+
+        auto wrap_line () -> void override;
+
+        auto get_current_indent () const -> IndentState override;
+
+    protected:
+        auto get_spaces () const -> std::string_view;
+
+        auto get_current_space_count () const -> int64;
+
+    private:
+        inline static const auto Spaces = std::string(1024, ' ');
+
+    private:
+        int64 spaceCount_;
+        int64 currentLevel_;
     };
 
     /**
      *  @brief Console code outputter.
      */
-    class ConsoleCodeOutputter : public ICodeOutputter
+    class ConsoleCodeOutputter : public IndentingCodeOutputter
     {
     public:
+        ConsoleCodeOutputter (CodeStyle style);
+
+        auto begin_line () -> void override;
+
+        auto end_line () -> void override;
+
+        auto blank_line () -> void override;
+
+        auto end_region () -> void override;
+
+        auto out (std::string_view token) -> ConsoleCodeOutputter& override;
+
+        auto out (
+            std::string_view token,
+            TokenType type
+        ) -> ConsoleCodeOutputter& override;
+
+    private:
+        auto set_color (Color color) -> void;
+
+        auto reset_color () -> void;
+
+    private:
+        CodeStyle style_;
     };
 
-    /**
-     *  @brief Rtf code outputter.
-     */
-    class RtfCodeOutputter : public ICodeOutputter
-    {
-    public:
-    };
+    // /**
+    //  *  @brief Rtf code outputter.
+    //  */
+    // class RtfCodeOutputter : public IndentingCodeOutputter
+    // {
+    // public:
+    //     RtfCodeOutputter(std::ostream& ost, CodeStyle style);
+    // };
+
+    // /**
+    //  *  @brief LaTeX code outputter.
+    //  */
+    // class LatexCodeOutputter : public IndentingCodeOutputter
+    // {
+    // public:
+    //     RtfCodeOutputter(std::ostream& ost, CodeStyle style);
+    // };
 
     /**
-     *  @brief LaTeX code outputter.
-     */
-    class LatexCodeOutputter : public ICodeOutputter
+    *  @brief /dev/null code outputter. Measures how long a line would be.
+    */
+    class DummyCodeOutputter : public IndentingCodeOutputter
     {
     public:
+        DummyCodeOutputter (CodeStyle const& style);
+
+        auto begin_line () -> void override;
+        auto end_line   () -> void override;
+        auto blank_line () -> void override;
+        auto end_region () -> void override;
+
+        auto out (std::string_view token) -> DummyCodeOutputter& override;
+        auto out (
+            std::string_view token,
+            TokenType
+        ) -> DummyCodeOutputter& override;
+
+        auto get_column () const -> int64;
+
+    private:
+        int64 currentColumn_;
     };
 
     auto make_code_outputter (OutputType) -> std::unique_ptr<ICodeOutputter>;

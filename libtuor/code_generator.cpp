@@ -7,546 +7,338 @@
 #include <cassert>
 #include <cmath>
 
+#include "libtuor/code_output.hpp"
 #include "utils.hpp"
 
 namespace fri
 {
-// Color definitions:
-
-    auto to_string (Color const c) -> std::string
-    {
-        auto res = std::string("Color(");
-        res += std::to_string(c.r_);
-        res += ", ";
-        res += std::to_string(c.g_);
-        res += ", ";
-        res += std::to_string(c.b_);
-        res += ")";
-        return res;
-    }
-
-    auto operator== (Color const l, Color const r) -> bool
-    {
-        return l.r_ == r.r_
-           and l.g_ == r.g_
-           and l.b_ == r.b_;
-    }
-
-    auto operator!= (Color const l, Color const r) -> bool
-    {
-        return not (l == r);
-    }
-
-// CommonCodePrinter definitions:
-
-    CommonCodePrinter::CommonCodePrinter
-        (OutputSettings const& s) :
-        indentStep_    {s.indentSpaces},
-        indentCurrent_ {0}
-    {
-    }
-
-    CommonCodePrinter::CommonCodePrinter
-        (IndentState s) :
-        indentStep_    {s.step},
-        indentCurrent_ {s.current}
-    {
-    }
-
-    auto CommonCodePrinter::inc_indent
-        () -> void
-    {
-        ++indentCurrent_;
-    }
-
-    auto CommonCodePrinter::dec_indent
-        () -> void
-    {
-        if (indentCurrent_ > 0)
-        {
-            --indentCurrent_;
-        }
-    }
-
-    auto CommonCodePrinter::wrap_line
-        () -> void
-    {
-        this->end_line();
-        this->begin_line();
-    }
-
-    auto CommonCodePrinter::current_indent
-        () const -> IndentState
-    {
-        return IndentState { .step = indentStep_
-                           , .current = indentCurrent_ };
-    }
-
-    auto CommonCodePrinter::get_indent
-        () const -> std::string_view
-    {
-        auto const sc = std::min(Spaces.size(), indentCurrent_ * indentStep_);
-        return Spaces.substr(0, sc);
-    }
-
-// ConsoleCodePrinter definitions:
-
-    ConsoleCodePrinter::ConsoleCodePrinter
-        (OutputSettings const& settings) :
-        base (settings)
-    {
-    }
-
-    auto ConsoleCodePrinter::begin_line
-        () -> void
-    {
-        std::cout << base::get_indent();
-    }
-
-    auto ConsoleCodePrinter::end_line
-        () -> void
-    {
-        std::cout << '\n';
-    }
-
-    auto ConsoleCodePrinter::blank_line
-        () -> void
-    {
-        this->end_line();
-    }
-
-    auto ConsoleCodePrinter::out
-        (std::string_view s) -> ConsoleCodePrinter&
-    {
-        std::cout << s;
-        return *this;
-    }
-
-    auto ConsoleCodePrinter::out
-        (std::string_view s, TokenStyle const& st) -> ConsoleCodePrinter&
-    {
-        this->set_color(st.color_);
-        std::cout << s;
-        this->reset_color();
-        return *this;
-    }
-
-    auto ConsoleCodePrinter::end_region
-        () -> void
-    {
-        this->blank_line();
-    }
-
-    auto ConsoleCodePrinter::set_color
-        (Color const& c) -> void
-    {
-        std::cout << ( Color {255, 0,   0}   == c ? "\x1B[91m"
-                     : Color {0,   255, 0}   == c ? "\x1B[92m"
-                     : Color {255, 255, 0}   == c ? "\x1B[93m"
-                     : Color {0,   0,   255} == c ? "\x1B[94m"
-                     : Color {255, 0,   255} == c ? "\x1B[95m"
-                     : Color {0,   255, 255} == c ? "\x1B[96m"
-                     : Color {255, 255, 255} == c ? "\x1B[97m"
-                     :                              "\x1B[97m" );
-    }
-
-    auto ConsoleCodePrinter::reset_color
-        () -> void
-    {
-        std::cout << "\x1B[0m";
-    }
-
-    template<class Op>
-    auto for_each_color (CodeStyle const& st, Op&& op)
-    {
-        op(st.function_.color_);
-        op(st.variable_.color_);
-        op(st.memberVariable_.color_);
-        op(st.keyword_.color_);
-        op(st.controlKeyword_.color_);
-        op(st.plain_.color_);
-        op(st.customType_.color_);
-        op(st.primType_.color_);
-        op(st.stringLiteral_.color_);
-        op(st.valLiteral_.color_);
-        op(st.numLiteral_.color_);
-        op(st.lineNumber_.color_);
-    }
-
-// RtfCodePrinter definitions:
-
-    RtfCodePrinter::RtfCodePrinter
-        (std::ofstream& ofst, OutputSettings const& settings) :
-        base  (settings),
-        ofst_ (&ofst)
-    {
-        *ofst_ << R"({\rtf1\ansi\deff0\f0\fs)"   << (2 * settings.fontSize) << '\n'
-               << R"({\fonttbl)"                 << '\n'
-               << R"({\f0\fmodern )"             << settings.font << ";}"   << '\n'
-               << R"(})"                         << '\n'
-               << R"({\colortbl)"                << '\n'
-               << R"(;)"                         << '\n';
-
-        for_each_color(settings.style, [this](auto const& c)
-        {
-            colors_.emplace_back(c);
-        });
-
-        for (auto [r, g, b] : colors_)
-        {
-            auto const ri = static_cast<unsigned>(r);
-            auto const gi = static_cast<unsigned>(g);
-            auto const bi = static_cast<unsigned>(b);
-            *ofst_ << R"(\red)"   << ri
-                   << R"(\green)" << gi
-                   << R"(\blue)"  << bi << ';' << '\n';
-        }
-        *ofst_ << R"(})" << '\n';
-    }
-
-    RtfCodePrinter::~RtfCodePrinter
-        ()
-    {
-        ofst_->flush();
-        *ofst_ << "}";
-    }
-
-    auto RtfCodePrinter::begin_line
-        () -> void
-    {
-        *ofst_ << base::get_indent();
-    }
-
-    auto RtfCodePrinter::end_line
-        () -> void
-    {
-        *ofst_ << R"(\line)" << '\n';
-    }
-
-    auto RtfCodePrinter::blank_line
-        () -> void
-    {
-        this->end_line();
-    }
-
-    auto RtfCodePrinter::end_region
-        () -> void
-    {
-        this->blank_line();
-    }
-
-    auto RtfCodePrinter::out
-        (std::string_view s) -> RtfCodePrinter&
-    {
-        *ofst_ << encode(s);
-        return *this;
-    }
-
-    auto RtfCodePrinter::out
-        (std::string_view s, TokenStyle const& st) -> RtfCodePrinter&
-    {
-        this->begin_color(st.color_);
-        this->begin_style(st.style_);
-        this->out(s);
-        this->end_style(st.style_);
-        this->end_color();
-        return *this;
-    }
-
-    auto RtfCodePrinter::begin_color
-        (Color const& c) -> void
-    {
-        *ofst_ << R"({\cf)"
-               << this->color_code(c)
-               << ' ';
-    }
-
-    auto RtfCodePrinter::end_color
-        () -> void
-    {
-        *ofst_ << '}';
-    }
-
-    auto RtfCodePrinter::begin_style
-        (FontStyle const s) -> void
-    {
-        switch (s)
-        {
-            case FontStyle::Bold:
-                *ofst_ << R"(\b )";
-                break;
-
-            case FontStyle::Italic:
-                *ofst_ << R"(\i )";
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    auto RtfCodePrinter::end_style
-        (FontStyle const s) -> void
-    {
-        switch (s)
-        {
-            case FontStyle::Bold:
-                *ofst_ << R"(\b0)";
-                break;
-
-            case FontStyle::Italic:
-                *ofst_ << R"(\i0)";
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    auto RtfCodePrinter::color_code
-        (Color const& c) -> unsigned
-    {
-        auto it = std::find(std::begin(colors_), std::end(colors_), c);
-        return it == std::end(colors_)
-            ? 0u
-            : static_cast<unsigned>(std::distance(std::begin(colors_), it)) + 1;
-    }
-
-    auto RtfCodePrinter::encode
-        (std::string_view s) -> std::string
-    {
-        auto cs = std::string();
-        cs.reserve(s.size());
-
-        auto const end = std::end(s);
-        auto it = std::begin(s);
-        while (it != end)
-        {
-            auto const c  = *it;
-            auto const cu = static_cast<unsigned char>(c);
-            if (c == '\\' or c == '{' or c == '}')
-            {
-                (cs += '\\') += c;
-            }
-            else if (cu & 0x80)
-            {
-                auto const as_u = [](auto const x){ return static_cast<unsigned char>(x); };
-                auto const len = (cu & 0xE0u) == 0xC0u ? 2 :
-                                 (cu & 0xF0u) == 0xE0u ? 3 : 4;
-                auto const u = 2 == len ? (cu & 0x1Fu) << 6  | (as_u(*(it + 1)) & 0x3Fu) :
-                               3 == len ? (cu & 0x1Fu) << 12 | (as_u(*(it + 1)) & 0x3Fu) << 6  | (as_u(*(it + 2)) & 0x3Fu) :
-                                          (cu & 0x1Fu) << 18 | (as_u(*(it + 1)) & 0x3Fu) << 12 | (as_u(*(it + 2)) & 0x3Fu) << 6 | (as_u((*(it + 3))) & 0x3Fu) ;
-                ((cs += R"(\u)") += std::to_string(u)) += '?';
-                std::advance(it, len - 1);
-            }
-            else
-            {
-                cs += c;
-            }
-            ++it;
-        }
-        return cs;
-    }
-
-// DummyCodePrinter definitions:
-
-    DummyCodePrinter::DummyCodePrinter
-        (IndentState s) :
-        base (s)
-    {
-    }
-
-    auto DummyCodePrinter::begin_line
-        () -> void
-    {
-        currentColumn_ += base::get_indent().size();
-    }
-
-    auto DummyCodePrinter::end_line
-        () -> void
-    {
-        currentColumn_ = 0;
-    }
-
-    auto DummyCodePrinter::blank_line
-        () -> void
-    {
-        this->end_line();
-    }
-
-    auto DummyCodePrinter::end_region
-        () -> void
-    {
-        this->blank_line();
-    }
-
-    auto DummyCodePrinter::out
-        (std::string_view const s) -> DummyCodePrinter&
-    {
-        currentColumn_ += s.size();
-        return *this;
-    }
-
-    auto DummyCodePrinter::out
-        (std::string_view const s, TokenStyle const&) -> DummyCodePrinter&
-    {
-        this->out(s);
-        return *this;
-    }
-
-    auto DummyCodePrinter::get_column
-        () const -> std::size_t
-    {
-        return currentColumn_;
-    }
-
-// NumberedCodePrinter definitions:
-
-    NumberedCodePrinter::NumberedCodePrinter
-        (ICodePrinter& d, std::size_t const w, TokenStyle s) :
-        decoree_    {&d},
-        numWidth_   {w},
-        numStyle_   {s},
-        currentNum_ {1}
-    {
-    }
-
-    auto NumberedCodePrinter::inc_indent
-        () -> void
-    {
-        decoree_->inc_indent();
-    }
-
-    auto NumberedCodePrinter::dec_indent
-        () -> void
-    {
-        decoree_->dec_indent();
-    }
-
-    auto NumberedCodePrinter::begin_line
-        () -> void
-    {
-        this->out_number();
-        decoree_->out(" ");
-        decoree_->begin_line();
-    }
-
-    auto NumberedCodePrinter::end_line
-        () -> void
-    {
-        decoree_->end_line();
-    }
-
-    auto NumberedCodePrinter::wrap_line
-        () -> void
-    {
-        decoree_->end_line();
-        this->out_spaces();
-        decoree_->begin_line();
-    }
-
-    auto NumberedCodePrinter::blank_line
-        () -> void
-    {
-        decoree_->blank_line();
-    }
-
-    auto NumberedCodePrinter::end_region
-        () -> void
-    {
-        currentNum_ = 1;
-        decoree_->end_region();
-    }
-
-    auto NumberedCodePrinter::out
-        (std::string_view const s) -> NumberedCodePrinter&
-    {
-        decoree_->out(s);
-        return *this;
-    }
-
-    auto NumberedCodePrinter::out
-        (std::string_view const s, TokenStyle const& st) -> NumberedCodePrinter&
-    {
-        decoree_->out(s, st);
-        return *this;
-    }
-
-    auto NumberedCodePrinter::current_indent
-        () const -> IndentState
-    {
-        return decoree_->current_indent();
-    }
-
-    auto NumberedCodePrinter::out_number
-        () -> void
-    {
-        auto const len = static_cast<long>(std::ceil(std::log10(static_cast<double>(currentNum_) + 0.1)));
-        auto const numWidth = static_cast<long>(numWidth_);
-        auto const spaceCount = static_cast<std::size_t>(std::max(numWidth - len, 0l));
-        auto const spacesOffset = std::min(Spaces.size(), spaceCount);
-
-        auto out = std::string();
-        out += Spaces.substr(0, spacesOffset);
-        out += std::to_string(currentNum_);
-        out += ".";
-        decoree_->out(out, numStyle_);
-        ++currentNum_;
-    }
-
-    auto NumberedCodePrinter::out_spaces
-        () -> void
-    {
-        decoree_->out(Spaces.substr(0, std::min(numWidth_ + 2, Spaces.size())));
-    }
+// // RtfCodePrinter definitions:
+
+//     RtfCodePrinter::RtfCodePrinter
+//         (std::ofstream& ofst, OutputSettings const& settings) :
+//         base  (settings),
+//         ofst_ (&ofst)
+//     {
+//         *ofst_ << R"({\rtf1\ansi\deff0\f0\fs)"   << (2 * settings.fontSize) << '\n'
+//                << R"({\fonttbl)"                 << '\n'
+//                << R"({\f0\fmodern )"             << settings.font << ";}"   << '\n'
+//                << R"(})"                         << '\n'
+//                << R"({\colortbl)"                << '\n'
+//                << R"(;)"                         << '\n';
+
+//         for_each_color(settings.style, [this](auto const& c)
+//         {
+//             colors_.emplace_back(c);
+//         });
+
+//         for (auto [r, g, b] : colors_)
+//         {
+//             auto const ri = static_cast<unsigned>(r);
+//             auto const gi = static_cast<unsigned>(g);
+//             auto const bi = static_cast<unsigned>(b);
+//             *ofst_ << R"(\red)"   << ri
+//                    << R"(\green)" << gi
+//                    << R"(\blue)"  << bi << ';' << '\n';
+//         }
+//         *ofst_ << R"(})" << '\n';
+//     }
+
+//     RtfCodePrinter::~RtfCodePrinter
+//         ()
+//     {
+//         ofst_->flush();
+//         *ofst_ << "}";
+//     }
+
+//     auto RtfCodePrinter::begin_line
+//         () -> void
+//     {
+//         *ofst_ << base::get_indent();
+//     }
+
+//     auto RtfCodePrinter::end_line
+//         () -> void
+//     {
+//         *ofst_ << R"(\line)" << '\n';
+//     }
+
+//     auto RtfCodePrinter::blank_line
+//         () -> void
+//     {
+//         this->end_line();
+//     }
+
+//     auto RtfCodePrinter::end_region
+//         () -> void
+//     {
+//         this->blank_line();
+//     }
+
+//     auto RtfCodePrinter::out
+//         (std::string_view s) -> RtfCodePrinter&
+//     {
+//         *ofst_ << encode(s);
+//         return *this;
+//     }
+
+//     auto RtfCodePrinter::out
+//         (std::string_view s, TokenStyle const& st) -> RtfCodePrinter&
+//     {
+//         this->begin_color(st.color_);
+//         this->begin_style(st.style_);
+//         this->out(s);
+//         this->end_style(st.style_);
+//         this->end_color();
+//         return *this;
+//     }
+
+//     auto RtfCodePrinter::begin_color
+//         (Color const& c) -> void
+//     {
+//         *ofst_ << R"({\cf)"
+//                << this->color_code(c)
+//                << ' ';
+//     }
+
+//     auto RtfCodePrinter::end_color
+//         () -> void
+//     {
+//         *ofst_ << '}';
+//     }
+
+//     auto RtfCodePrinter::begin_style
+//         (FontStyle const s) -> void
+//     {
+//         switch (s)
+//         {
+//             case FontStyle::Bold:
+//                 *ofst_ << R"(\b )";
+//                 break;
+
+//             case FontStyle::Italic:
+//                 *ofst_ << R"(\i )";
+//                 break;
+
+//             default:
+//                 break;
+//         }
+//     }
+
+//     auto RtfCodePrinter::end_style
+//         (FontStyle const s) -> void
+//     {
+//         switch (s)
+//         {
+//             case FontStyle::Bold:
+//                 *ofst_ << R"(\b0)";
+//                 break;
+
+//             case FontStyle::Italic:
+//                 *ofst_ << R"(\i0)";
+//                 break;
+
+//             default:
+//                 break;
+//         }
+//     }
+
+//     auto RtfCodePrinter::color_code
+//         (Color const& c) -> unsigned
+//     {
+//         auto it = std::find(std::begin(colors_), std::end(colors_), c);
+//         return it == std::end(colors_)
+//             ? 0u
+//             : static_cast<unsigned>(std::distance(std::begin(colors_), it)) + 1;
+//     }
+
+//     auto RtfCodePrinter::encode
+//         (std::string_view s) -> std::string
+//     {
+//         auto cs = std::string();
+//         cs.reserve(s.size());
+
+//         auto const end = std::end(s);
+//         auto it = std::begin(s);
+//         while (it != end)
+//         {
+//             auto const c  = *it;
+//             auto const cu = static_cast<unsigned char>(c);
+//             if (c == '\\' or c == '{' or c == '}')
+//             {
+//                 (cs += '\\') += c;
+//             }
+//             else if (cu & 0x80)
+//             {
+//                 auto const as_u = [](auto const x){ return static_cast<unsigned char>(x); };
+//                 auto const len = (cu & 0xE0u) == 0xC0u ? 2 :
+//                                  (cu & 0xF0u) == 0xE0u ? 3 : 4;
+//                 auto const u = 2 == len ? (cu & 0x1Fu) << 6  | (as_u(*(it + 1)) & 0x3Fu) :
+//                                3 == len ? (cu & 0x1Fu) << 12 | (as_u(*(it + 1)) & 0x3Fu) << 6  | (as_u(*(it + 2)) & 0x3Fu) :
+//                                           (cu & 0x1Fu) << 18 | (as_u(*(it + 1)) & 0x3Fu) << 12 | (as_u(*(it + 2)) & 0x3Fu) << 6 | (as_u((*(it + 3))) & 0x3Fu) ;
+//                 ((cs += R"(\u)") += std::to_string(u)) += '?';
+//                 std::advance(it, len - 1);
+//             }
+//             else
+//             {
+//                 cs += c;
+//             }
+//             ++it;
+//         }
+//         return cs;
+//     }
+
+// // DummyCodeOutputter definitions:
+
+
+
+// // NumberedCodePrinter definitions:
+
+//     NumberedCodePrinter::NumberedCodePrinter
+//         (ICodePrinter& d, std::size_t const w, TokenStyle s) :
+//         decoree_    {&d},
+//         numWidth_   {w},
+//         numStyle_   {s},
+//         currentNum_ {1}
+//     {
+//     }
+
+//     auto NumberedCodePrinter::inc_indent
+//         () -> void
+//     {
+//         decoree_->inc_indent();
+//     }
+
+//     auto NumberedCodePrinter::dec_indent
+//         () -> void
+//     {
+//         decoree_->dec_indent();
+//     }
+
+//     auto NumberedCodePrinter::begin_line
+//         () -> void
+//     {
+//         this->out_number();
+//         decoree_->out(" ");
+//         decoree_->begin_line();
+//     }
+
+//     auto NumberedCodePrinter::end_line
+//         () -> void
+//     {
+//         decoree_->end_line();
+//     }
+
+//     auto NumberedCodePrinter::wrap_line
+//         () -> void
+//     {
+//         decoree_->end_line();
+//         this->out_spaces();
+//         decoree_->begin_line();
+//     }
+
+//     auto NumberedCodePrinter::blank_line
+//         () -> void
+//     {
+//         decoree_->blank_line();
+//     }
+
+//     auto NumberedCodePrinter::end_region
+//         () -> void
+//     {
+//         currentNum_ = 1;
+//         decoree_->end_region();
+//     }
+
+//     auto NumberedCodePrinter::out
+//         (std::string_view const s) -> NumberedCodePrinter&
+//     {
+//         decoree_->out(s);
+//         return *this;
+//     }
+
+//     auto NumberedCodePrinter::out
+//         (std::string_view const s, TokenStyle const& st) -> NumberedCodePrinter&
+//     {
+//         decoree_->out(s, st);
+//         return *this;
+//     }
+
+//     auto NumberedCodePrinter::current_indent
+//         () const -> IndentState
+//     {
+//         return decoree_->current_indent();
+//     }
+
+//     auto NumberedCodePrinter::out_number
+//         () -> void
+//     {
+//         auto const len = static_cast<long>(std::ceil(std::log10(static_cast<double>(currentNum_) + 0.1)));
+//         auto const numWidth = static_cast<long>(numWidth_);
+//         auto const spaceCount = static_cast<std::size_t>(std::max(numWidth - len, 0l));
+//         auto const spacesOffset = std::min(Spaces.size(), spaceCount);
+
+//         auto out = std::string();
+//         out += Spaces.substr(0, spacesOffset);
+//         out += std::to_string(currentNum_);
+//         out += ".";
+//         decoree_->out(out, numStyle_);
+//         ++currentNum_;
+//     }
+
+//     auto NumberedCodePrinter::out_spaces
+//         () -> void
+//     {
+//         decoree_->out(Spaces.substr(0, std::min(numWidth_ + 2, Spaces.size())));
+//     }
 
 // PseudocodeGenerator definitions:
 
     PseudocodeGenerator::PseudocodeGenerator
-        (ICodePrinter& out, CodeStyle style) :
-        out_       (&out),
-        style_     (std::move(style)),
-        funcNames_ { {"free", "vráťPamäť"}
-                   , {"swap", "vymeň"}
-                   , {"memmove", "presuňPamäť"}
-                   , {"memcpy", "skopírujPamäť"}
-                   , {"memcmp", "porovnajPamäť"}
-                   , {"calloc", "alokujPamäť"}
-                   , {"malloc", "alokujPamäť"}
-                   , {"realloc", "zmeňVeľkosťPamäte"} }
+        (ICodeOutputter& out) :
+        out_ (&out),
+        funcNames_ ({
+            {"free", "vráťPamäť"},
+            {"swap", "vymeň"},
+            {"memmove", "presuňPamäť"},
+            {"memcpy", "skopírujPamäť"},
+            {"memcmp", "porovnajPamäť"},
+            {"calloc", "alokujPamäť"},
+            {"malloc", "alokujPamäť"},
+            {"realloc", "zmeňVeľkosťPamäte"}
+        })
     {
     }
 
     auto PseudocodeGenerator::visit
         (IntLiteral const& i) -> void
     {
-        out_->out(std::to_string(i.num_), style_.numLiteral_);
+        out_->out(std::to_string(i.num_), TokenType::NumericLiteral);
     }
 
     auto PseudocodeGenerator::visit
         (FloatLiteral const& f) -> void
     {
-        out_->out(std::to_string(f.num_), style_.numLiteral_);
+        out_->out(std::to_string(f.num_), TokenType::NumericLiteral);
     }
 
     auto PseudocodeGenerator::visit
         (StringLiteral const& s) -> void
     {
-        out_->out("\"", style_.stringLiteral_);
-        out_->out(s.str_, style_.stringLiteral_);
-        out_->out("\"", style_.stringLiteral_);
+        out_->out("\"", TokenType::StringLiteral);
+        out_->out(s.str_, TokenType::StringLiteral);
+        out_->out("\"", TokenType::StringLiteral);
     }
 
     auto PseudocodeGenerator::visit
         (NullLiteral const&) -> void
     {
-        out_->out("NULL", style_.valLiteral_);
+        out_->out("NULL", TokenType::ValueLiteral);
     }
 
     auto PseudocodeGenerator::visit
         (BoolLiteral const& b) -> void
     {
-        out_->out(b.val_ ? "pravda" : "nepravda", style_.valLiteral_);
+        out_->out(b.val_ ? "pravda" : "nepravda", TokenType::ValueLiteral);
     }
 
     auto PseudocodeGenerator::visit
@@ -582,14 +374,14 @@ namespace fri
     auto PseudocodeGenerator::visit
         (VarRef const& r) -> void
     {
-        out_->out(r.name_, style_.variable_);
+        out_->out(r.name_, TokenType::Variable);
     }
 
     auto PseudocodeGenerator::visit
         (MemberVarRef const& m) -> void
     {
         this->visit_member_base(*m.base_);
-        out_->out(simplify_member_name(m.name_), style_.memberVariable_);
+        out_->out(simplify_member_name(m.name_), TokenType::MemberVariable);
     }
 
     auto PseudocodeGenerator::visit
@@ -621,7 +413,7 @@ namespace fri
         }
         else if (is_call(r.op_))
         {
-            out_->out(un_op_to_string(r.op_), style_.function_);
+            out_->out(un_op_to_string(r.op_), TokenType::Function);
             out_->out("(");
             accept_this(r.arg_);
             out_->out(")");
@@ -636,7 +428,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (New const& n) -> void
     {
-        out_->out("vytvor ", style_.keyword_);
+        out_->out("vytvor ", TokenType::Keyword);
         n.type_->accept(*this);
         out_->out("(");
         this->visit_args(n.args_);
@@ -646,7 +438,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (FunctionCall const& c) -> void
     {
-        out_->out(this->map_func_name(c.name_), style_.function_);
+        out_->out(this->map_func_name(c.name_), TokenType::Function);
         out_->out("(");
         this->visit_args(c.args_);
         out_->out(")");
@@ -655,22 +447,22 @@ namespace fri
     auto PseudocodeGenerator::visit
         (This const&) -> void
     {
-        out_->out("self", style_.keyword_);
+        out_->out("self", TokenType::Keyword);
     }
 
     auto PseudocodeGenerator::visit
         (IfExpression const& c) -> void
     {
-        out_->out("Keď platí ", style_.controlKeyword_);
+        out_->out("Keď platí ", TokenType::ControlKeyword);
         out_->out("(");
         c.cond_->accept(*this);
         out_->out(")");
         out_->inc_indent();
         out_->wrap_line();
-        out_->out("tak vráť ", style_.controlKeyword_);
+        out_->out("tak vráť ", TokenType::ControlKeyword);
         c.then_->accept(*this);
         out_->wrap_line();
-        out_->out("inak vráť ", style_.controlKeyword_);
+        out_->out("inak vráť ", TokenType::ControlKeyword);
         c.else_->accept(*this);
         out_->dec_indent();
     }
@@ -678,13 +470,13 @@ namespace fri
     auto PseudocodeGenerator::visit
         (PrimType const& p) -> void
     {
-        out_->out(simplify_type_name(p.name_), style_.primType_);
+        out_->out(simplify_type_name(p.name_), TokenType::BuiltinType);
     }
 
     auto PseudocodeGenerator::visit
         (CustomType const& c) -> void
     {
-        out_->out(c.name_, style_.customType_);
+        out_->out(c.name_, TokenType::UserDefinedType);
     }
 
     auto PseudocodeGenerator::visit
@@ -725,7 +517,7 @@ namespace fri
     {
         if (p.pointee_->to_string() == "void")
         {
-            out_->out("adresa", style_.primType_);
+            out_->out("adresa", TokenType::BuiltinType);
         }
         else
         {
@@ -737,7 +529,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Function const& f) -> void
     {
-        out_->out("λ", style_.keyword_);
+        out_->out("λ", TokenType::Keyword);
         out_->out("(");
         this->visit_range(f.params_, [this]()
         {
@@ -756,7 +548,7 @@ namespace fri
     {
         n.nest_->accept(*this);
         out_->out(".");
-        out_->out(n.name_, style_.customType_);
+        out_->out(n.name_, TokenType::UserDefinedType);
     }
 
     auto PseudocodeGenerator::visit
@@ -764,7 +556,10 @@ namespace fri
     {
         // Class header.
         out_->begin_line();
-        out_->out(is_interface(c) ? "Rozhranie " : "Trieda ", style_.keyword_);
+        out_->out(is_interface(c)
+            ? "Rozhranie "
+            : "Trieda ", TokenType::Keyword
+        );
         this->visit_class_name(c);
 
         auto const baseCount = std::ranges::count_if(c.bases_, [](auto const& t)
@@ -790,7 +585,7 @@ namespace fri
             while (it != end)
             {
                 out_->begin_line();
-                out_->out("rozširuje ", style_.keyword_);
+                out_->out("rozširuje ", TokenType::Keyword);
                 (*it)->accept(*this);
                 ++it;
                 while (it != end and is_interface(**it))
@@ -827,7 +622,7 @@ namespace fri
             while (it != end)
             {
                 out_->begin_line();
-                out_->out("realizuje ", style_.keyword_);
+                out_->out("realizuje ", TokenType::Keyword);
                 (*it)->accept(*this);
                 ++it;
                 while (it != end and not is_interface(**it))
@@ -854,8 +649,8 @@ namespace fri
             out_->inc_indent();
             out_->inc_indent();
             out_->begin_line();
-            out_->out("má skratku ", style_.keyword_);
-            out_->out(*c.alias_, style_.customType_);
+            out_->out("má skratku ", TokenType::Keyword);
+            out_->out(*c.alias_, TokenType::UserDefinedType);
         }
 
         // Begin class member definitions / declarations.
@@ -873,8 +668,8 @@ namespace fri
         {
             out_->begin_line();
             tpdef.type_->accept(*this);
-            out_->out(" má skratku ", style_.keyword_);
-            out_->out(tpdef.alias_, style_.customType_);
+            out_->out(" má skratku ", TokenType::Keyword);
+            out_->out(tpdef.alias_, TokenType::UserDefinedType);
             out_->end_line();
         }
 
@@ -946,18 +741,18 @@ namespace fri
         auto forFrom = ForFromVisitor(*this);
         auto forTo   = ForToVisitor(*this);
 
-        out_->out("Opakuj pre premennú ", style_.controlKeyword_);
+        out_->out("Opakuj pre premennú ", TokenType::ControlKeyword);
         if (f.var_)
         {
             f.var_->accept(forVar);
         }
 
-        out_->out(" od ", style_.controlKeyword_);
+        out_->out(" od ", TokenType::ControlKeyword);
         if (f.var_)
         {
             f.var_->accept(forFrom);
         }
-        out_->out(" do ", style_.controlKeyword_);
+        out_->out(" do ", TokenType::ControlKeyword);
         if (f.cond_)
         {
             f.cond_->accept(forTo);
@@ -968,20 +763,20 @@ namespace fri
     auto PseudocodeGenerator::visit
         (WhileLoop const& w) -> void
     {
-        out_->out("Pokiaľ ", style_.controlKeyword_);
+        out_->out("Pokiaľ ", TokenType::ControlKeyword);
         out_->out("(");
         w.loop_.condition_->accept(*this);
         out_->out(")");
-        out_->out(" opakuj", style_.controlKeyword_);
+        out_->out(" opakuj", TokenType::ControlKeyword);
         w.loop_.body_.accept(*this);
     }
 
     auto PseudocodeGenerator::visit
         (DoWhileLoop const& d) -> void
     {
-        out_->out("Opakuj", style_.controlKeyword_);
+        out_->out("Opakuj", TokenType::ControlKeyword);
         d.loop_.body_.accept(*this);
-        out_->out(" pokiaľ ", style_.controlKeyword_);
+        out_->out(" pokiaľ ", TokenType::ControlKeyword);
         out_->out("(");
         d.loop_.condition_->accept(*this);
         out_->out(")");
@@ -999,7 +794,7 @@ namespace fri
         {
             return [this, singleLine, &f]()
             {
-                out_->out(f.name_, style_.variable_);
+                out_->out(f.name_, TokenType::Variable);
                 out_->out(": ");
                 f.type_->accept(*this);
                 if (f.initializer_)
@@ -1041,8 +836,11 @@ namespace fri
         auto const keyword = f.var_.type_->is_const() ? "konštanta "sv
                                                       : "vlastnosť "sv;
         out_->begin_line();
-        out_->out(keyword, style_.keyword_);
-        out_->out(simplify_member_name(f.var_.name_), style_.memberVariable_);
+        out_->out(keyword, TokenType::Keyword);
+        out_->out(
+            simplify_member_name(f.var_.name_),
+            TokenType::MemberVariable
+        );
         out_->out(": ");
         f.var_.type_->accept(*this);
         if (f.var_.initializer_)
@@ -1064,7 +862,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (VarDefinition const& v) -> void
     {
-        out_->out("definuj premennú ", style_.keyword_);
+        out_->out("definuj premennú ", TokenType::Keyword);
         v.var_.accept(*this);
     }
 
@@ -1098,7 +896,7 @@ namespace fri
     {
         if (!isa<IfExpression>(r.expression_))
         {
-            out_->out("Vráť ", style_.controlKeyword_);
+            out_->out("Vráť ", TokenType::ControlKeyword);
         }
         r.expression_->accept(*this);
     }
@@ -1106,17 +904,17 @@ namespace fri
     auto PseudocodeGenerator::visit
         (If const& i) -> void
     {
-        out_->out("Ak ", style_.controlKeyword_);
+        out_->out("Ak ", TokenType::ControlKeyword);
         out_->out("(");
         i.condition_->accept(*this);
         out_->out(")");
-        out_->out(" potom", style_.controlKeyword_);
+        out_->out(" potom", TokenType::ControlKeyword);
         i.then_.accept(*this);
         if (i.else_)
         {
             out_->end_line();
             out_->begin_line();
-            out_->out("inak", style_.controlKeyword_);
+            out_->out("inak", TokenType::ControlKeyword);
             i.else_.value().accept(*this);
         }
     }
@@ -1124,7 +922,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Delete const& d) -> void
     {
-        out_->out("zruš ", style_.keyword_);
+        out_->out("zruš ", TokenType::Keyword);
         d.ex_->accept(*this);
     }
 
@@ -1140,7 +938,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (DestructorCall const& d) -> void
     {
-        out_->out("zruš ", style_.keyword_);
+        out_->out("zruš ", TokenType::Keyword);
         d.ex_->accept(*this);
     }
 
@@ -1148,7 +946,7 @@ namespace fri
         (MemberFunctionCall const& m) -> void
     {
         this->visit_member_base(*m.base_);
-        out_->out(m.call_, style_.function_);
+        out_->out(m.call_, TokenType::Function);
         out_->out("(");
         this->visit_args(m.args_);
         out_->out(")");
@@ -1166,8 +964,9 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Lambda const& l) -> void
     {
-        out_->out("λ", style_.keyword_);
+        out_->out("λ", TokenType::Keyword);
         out_->out("(");
+        // TODO visit_args?
         this->visit_range(l.params_, [this]()
         {
             out_->out(", ");
@@ -1192,7 +991,7 @@ namespace fri
     auto PseudocodeGenerator::visit
         (Throw const&) -> void
     {
-        out_->out("CHYBA", style_.stringLiteral_);
+        out_->out("CHYBA", TokenType::StringLiteral);
     }
 
     auto PseudocodeGenerator::visit
@@ -1204,23 +1003,23 @@ namespace fri
         (Case const& c) -> void
     {
         out_->begin_line();
-        out_->out("hodnotu ", style_.controlKeyword_);
+        out_->out("hodnotu ", TokenType::ControlKeyword);
         if (c.expr_)
         {
             c.expr_->accept(*this);
         }
-        out_->out(" tak", style_.controlKeyword_);
+        out_->out(" tak", TokenType::ControlKeyword);
         c.body_.accept(*this);
     }
 
     auto PseudocodeGenerator::visit
         (Switch const& s) -> void
     {
-        out_->out("Keď ", style_.controlKeyword_);
+        out_->out("Keď ", TokenType::ControlKeyword);
         out_->out("(");
         s.cond_->accept(*this);
         out_->out(")");
-        out_->out(" nadobúda", style_.controlKeyword_);
+        out_->out(" nadobúda", TokenType::ControlKeyword);
         out_->out(" {");
         out_->end_line();
         out_->inc_indent();
@@ -1232,25 +1031,13 @@ namespace fri
         if (s.default_)
         {
             out_->begin_line();
-            out_->out("žiadnu z uvedených hodnôt", style_.controlKeyword_);
+            out_->out("žiadnu z uvedených hodnôt", TokenType::ControlKeyword);
             (*s.default_).accept(*this);
             out_->end_line();
         }
         out_->dec_indent();
         out_->begin_line();
         out_->out("}");
-    }
-
-    auto PseudocodeGenerator::out_plain
-        (std::string_view const s) -> void
-    {
-        out_->out(s, style_.plain_);
-    }
-
-    auto PseudocodeGenerator::out_var_name
-        (std::string_view const s) -> void
-    {
-        out_->out(s, style_.variable_);
     }
 
     auto PseudocodeGenerator::bin_op_to_string
@@ -1369,12 +1156,12 @@ namespace fri
         auto const out_name = [this, &c, &m, isIn]()
         {
             out_->begin_line();
-            out_->out("operácia ", style_.keyword_);
+            out_->out("operácia ", TokenType::Keyword);
             if (isIn == IsInline::NoInline)
             {
                 if (c.alias_)
                 {
-                    out_->out(*c.alias_, style_.customType_);
+                    out_->out(*c.alias_, TokenType::UserDefinedType);
                 }
                 else
                 {
@@ -1382,7 +1169,7 @@ namespace fri
                 }
                 out_->out(".");
             }
-            out_->out(m.name_, style_.function_);
+            out_->out(m.name_, TokenType::Function);
         };
 
         auto const out_type = [this, &m]()
@@ -1403,13 +1190,13 @@ namespace fri
         auto const out_name = [this, &c, isIn]()
         {
             out_->begin_line();
-            out_->out("konštruktor", style_.keyword_);
+            out_->out("konštruktor", TokenType::Keyword);
             if (isIn == IsInline::NoInline)
             {
                 out_->out(" ");
                 if (c.alias_)
                 {
-                    out_->out(*c.alias_, style_.customType_);
+                    out_->out(*c.alias_, TokenType::UserDefinedType);
                 }
                 else
                 {
@@ -1425,8 +1212,8 @@ namespace fri
         (Class const&, Destructor const&) -> void
     {
         out_->begin_line();
-        out_->out("deštruktor ", style_.keyword_);
-        out_->out("()", style_.plain_);
+        out_->out("deštruktor ", TokenType::Keyword);
+        out_->out("()");
         out_->end_line();
     }
 
@@ -1451,7 +1238,7 @@ namespace fri
     auto PseudocodeGenerator::visit_def
         (Class const& c, Constructor const& con) -> void
     {
-        if (con.baseInitList_.empty() and con.initList_.empty() and not con.body_)
+        if (con.baseInitList_.empty() && con.initList_.empty() && not con.body_)
         {
             return;
         }
@@ -1471,11 +1258,11 @@ namespace fri
                 out_->begin_line();
                 if (baseName.starts_with(c.name_)or (c.alias_ and baseName.starts_with(*c.alias_)))
                 {
-                    out_->out("inicializuj ", style_.keyword_);
+                    out_->out("inicializuj ", TokenType::Keyword);
                 }
                 else
                 {
-                    out_->out("inicializuj predka ", style_.keyword_);
+                    out_->out("inicializuj predka ", TokenType::Keyword);
                 }
                 base.base_->accept(*this);
                 out_->out("(");
@@ -1487,7 +1274,10 @@ namespace fri
             for (auto const& i : con.initList_)
             {
                 out_->begin_line();
-                out_->out(simplify_member_name(i.name_), style_.memberVariable_);
+                out_->out(
+                    simplify_member_name(i.name_),
+                    TokenType::MemberVariable
+                );
                 out_->out(" ");
                 out_->out(bin_op_to_string(BinOpcode::Assign));
                 out_->out(" ");
@@ -1519,10 +1309,10 @@ namespace fri
         }
 
         out_->begin_line();
-        out_->out("deštruktor ", style_.keyword_);
+        out_->out("deštruktor ", TokenType::Keyword);
         if (c.alias_)
         {
-            out_->out(*c.alias_, style_.customType_);
+            out_->out(*c.alias_, TokenType::UserDefinedType);
         }
         else
         {
@@ -1548,7 +1338,7 @@ namespace fri
             for (auto const& b : c.bases_)
             {
                 out_->begin_line();
-                out_->out("finalizuj predka ", style_.keyword_);
+                out_->out("finalizuj predka ", TokenType::Keyword);
                 b->accept(*this);
                 out_->end_line();
             }
@@ -1564,11 +1354,20 @@ namespace fri
     auto PseudocodeGenerator::visit_class_name
         (Class const& c) -> void
     {
-        out_->out(c.name_.empty() ? c.qualName_ : c.name_, style_.customType_);
+        out_->out(
+            c.name_.empty()
+                ? c.qualName_
+                : c.name_,
+            TokenType::UserDefinedType
+        );
         if (not c.templateParams_.empty())
         {
             out_->out("<");
-            this->output_range(c.templateParams_, ", ", style_.customType_);
+            this->output_range(
+                c.templateParams_,
+                ", ",
+                TokenType::UserDefinedType
+            );
             out_->out(">");
         }
     }
@@ -1584,10 +1383,11 @@ namespace fri
     }
 
     template<class OutputName, class OutputType>
-    auto PseudocodeGenerator::visit_decl
-        ( OutputName&&                        name
-        , std::vector<ParamDefinition> const& params
-        , OutputType&&                        type ) -> void
+    auto PseudocodeGenerator::visit_decl (
+        OutputName&& name,
+        std::vector<ParamDefinition> const& params,
+        OutputType&& type
+    ) -> void
     {
         // Outputs method header into single line.
         auto const out_single_line = [this, &name, &params, &type]()
@@ -1640,13 +1440,13 @@ namespace fri
 
     template<class Range>
     auto PseudocodeGenerator::output_range
-        (Range&& xs, std::string_view glue, TokenStyle const& s) -> void
+        (Range&& xs, std::string_view glue, TokenType type) -> void
     {
         auto const end = std::end(xs);
         auto it = std::begin(xs);
         while (it != end)
         {
-            out_->out(*it, s);
+            out_->out(*it, type);
             ++it;
             if (it != end)
             {
@@ -1702,10 +1502,11 @@ namespace fri
 
     template<class LineOut>
     auto PseudocodeGenerator::try_output_length
-        (LineOut&& o) -> std::size_t
+        (LineOut&& o) -> int64
     {
         auto const realOutput = out_;
-        auto dummyOutput = DummyCodePrinter(out_->current_indent());
+        // TODO solve
+        auto dummyOutput = DummyCodeOutputter(out_->get_current_indent());
         out_ = &dummyOutput;
         o();
         auto const column = dummyOutput.get_column();

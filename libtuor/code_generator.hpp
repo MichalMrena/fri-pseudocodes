@@ -3,6 +3,7 @@
 
 #include <libtuor/types.hpp>
 #include "abstract_code.hpp"
+#include "code_output.hpp"
 #include "types.hpp"
 
 #include <cstdint>
@@ -13,283 +14,75 @@
 
 namespace fri
 {
-    /**
-     *  @brief RGB color.
-     */
-    struct Color
-    {
-        int32 r_ {};
-        int32 g_ {};
-        int32 b_ {};
-    };
+    // /**
+    //  *  @brief Prints code to a RTF file.
+    //  */
+    // class RtfCodePrinter : public CommonCodePrinter
+    // {
+    // public:
+    //     RtfCodePrinter   (std::ofstream&, OutputSettings const&);
+    //     ~RtfCodePrinter  ();
 
-    auto to_string  (Color c) -> std::string;
-    auto operator== (Color l, Color r) -> bool;
-    auto operator!= (Color l, Color r) -> bool;
+    //     auto begin_line () -> void override;
+    //     auto end_line   () -> void override;
+    //     auto blank_line () -> void override;
+    //     auto end_region () -> void override;
 
-    /**
-     *  @brief Font style.
-     */
-    enum class FontStyle
-    {
-        Normal,
-        Bold,
-        Italic
-    };
-
-    /**
-     *  @brief Text style.
-     */
-    struct TokenStyle
-    {
-        Color color_ {};
-        FontStyle style_ {FontStyle::Normal};
-    };
-
-    /**
-     *  @brief Style of different parts of code.
-     */
-    struct CodeStyle
-    {
-        TokenStyle function_       {Color {}, FontStyle::Normal};
-        TokenStyle variable_       {Color {}, FontStyle::Normal};
-        TokenStyle memberVariable_ {Color {}, FontStyle::Normal};
-        TokenStyle keyword_        {Color {}, FontStyle::Normal};
-        TokenStyle controlKeyword_ {Color {}, FontStyle::Normal};
-        TokenStyle plain_          {Color {}, FontStyle::Normal};
-        TokenStyle customType_     {Color {}, FontStyle::Normal};
-        TokenStyle primType_       {Color {}, FontStyle::Normal};
-        TokenStyle stringLiteral_  {Color {}, FontStyle::Normal};
-        TokenStyle valLiteral_     {Color {}, FontStyle::Normal};
-        TokenStyle numLiteral_     {Color {}, FontStyle::Normal};
-        TokenStyle lineNumber_     {Color {}, FontStyle::Normal};
-    };
+    //     auto out (std::string_view) -> RtfCodePrinter& override;
+    //     auto out (std::string_view, TokenStyle const&) -> RtfCodePrinter& override;
 
 
+    // private:
+    //     using base = CommonCodePrinter;
 
-    /**
-     *  @brief Output settings.
-     */
-    struct OutputSettings
-    {
-        unsigned int  fontSize = 9;
-        unsigned int  indentSpaces = 2;
-        std::string   font {"Consolas"};
-        CodeStyle style {};
-    };
+    // private:
+    //     auto begin_color (Color const&) -> void;
+    //     auto end_color   ()             -> void;
+    //     auto begin_style (FontStyle)    -> void;
+    //     auto end_style   (FontStyle)    -> void;
+    //     auto color_code  (Color const&) -> unsigned;
+    //     static auto encode (std::string_view) -> std::string;
 
-    /**
-     *  @brief Describes actual state of indentation in a code printer.
-     */
-    struct IndentState
-    {
-        std::size_t step;
-        std::size_t current;
-    };
+    // private:
+    //     std::ofstream*     ofst_;
+    //     std::vector<Color> colors_;
+    // };
 
-    /**
-     *  @brief Interface for code printers.
-     */
-    class ICodePrinter
-    {
-    public:
-        virtual ~ICodePrinter() = default;
+    // /**
+    //  *  @brief Decorates code priter with line numbering.
+    //  */
+    // class NumberedCodePrinter : public ICodePrinter
+    // {
+    // public:
+    //     NumberedCodePrinter(ICodePrinter&, std::size_t, TokenStyle);
 
-        /**
-         *  @brief Increase current indentation.
-         */
-        virtual auto inc_indent () -> void = 0;
+    //     auto inc_indent () -> void override;
+    //     auto dec_indent () -> void override;
+    //     auto begin_line () -> void override;
+    //     auto end_line   () -> void override;
+    //     auto wrap_line  () -> void override;
+    //     auto blank_line () -> void override;
+    //     auto end_region () -> void override;
 
-        /**
-         *  @brief Decrease current indentation.
-         */
-        virtual auto dec_indent () -> void = 0;
+    //     auto out (std::string_view) -> NumberedCodePrinter& override;
+    //     auto out (std::string_view, TokenStyle const&) -> NumberedCodePrinter& override;
 
-        /**
-         *  @brief Adds indentation characters to the output.
-         */
-        virtual auto begin_line () -> void = 0;
+    //     auto current_indent () const -> IndentState override;
 
-        /**
-         *  @brief Terminates current line and jumps to the begining of the next line.
-         */
-        virtual auto end_line () -> void = 0;
+    // private:
+    //     auto out_number () -> void;
+    //     auto out_spaces () -> void;
 
-        /**
-         *  @brief Prints an empty line to the output.
-         */
-        virtual auto blank_line () -> void = 0;
+    // private:
+    //     inline static constexpr auto Spaces
+    //         = std::string_view("                                             ");
 
-        /**
-         *  @brief Jumps to the next line with the same indent.
-         */
-        virtual auto wrap_line () -> void = 0;
-
-        /**
-         *  @brief Prints string to the output.
-         */
-        virtual auto out (std::string_view) -> ICodePrinter& = 0;
-
-        /**
-         *  @brief Prints string to the output using given style if possible.
-         */
-        virtual auto out (std::string_view, TokenStyle const&) -> ICodePrinter& = 0;
-
-        /**
-         *  @brief Current state of indentation.
-         */
-        virtual auto current_indent () const -> IndentState = 0; // TODO const ref?
-
-        /**
-         *  @brief Ends the current region e.g. page.
-         */
-        virtual auto end_region () -> void = 0;
-    };
-
-    /**
-     *  @brief Implements indentation that is common for all printers.
-     */
-    class CommonCodePrinter : public ICodePrinter
-    {
-    public:
-        CommonCodePrinter (OutputSettings const&);
-        CommonCodePrinter (IndentState);
-
-        auto inc_indent     () -> void override;
-        auto dec_indent     () -> void override;
-        auto wrap_line      () -> void override;
-        auto current_indent () const -> IndentState override;
-
-    protected:
-        auto get_indent () const -> std::string_view;
-
-    private:
-        inline static constexpr auto Spaces
-            = std::string_view("                                             ");
-
-    private:
-        std::size_t indentStep_;
-        std::size_t indentCurrent_;
-    };
-
-    /**
-     *  @brief Prints code to the console.
-     */
-    class ConsoleCodePrinter : public CommonCodePrinter
-    {
-    public:
-        ConsoleCodePrinter  (OutputSettings const&);
-
-        auto begin_line () -> void override;
-        auto end_line   () -> void override;
-        auto blank_line () -> void override;
-        auto end_region () -> void override;
-
-        auto out (std::string_view) -> ConsoleCodePrinter& override;
-        auto out (std::string_view, TokenStyle const&) -> ConsoleCodePrinter& override;
-
-    private:
-        using base = CommonCodePrinter;
-
-    private:
-        auto set_color   (Color const&) -> void;
-        auto reset_color ()             -> void;
-    };
-
-    /**
-     *  @brief Prints code to a RTF file.
-     */
-    class RtfCodePrinter : public CommonCodePrinter
-    {
-    public:
-        RtfCodePrinter   (std::ofstream&, OutputSettings const&);
-        ~RtfCodePrinter  ();
-
-        auto begin_line () -> void override;
-        auto end_line   () -> void override;
-        auto blank_line () -> void override;
-        auto end_region () -> void override;
-
-        auto out (std::string_view) -> RtfCodePrinter& override;
-        auto out (std::string_view, TokenStyle const&) -> RtfCodePrinter& override;
-
-
-    private:
-        using base = CommonCodePrinter;
-
-    private:
-        auto begin_color (Color const&) -> void;
-        auto end_color   ()             -> void;
-        auto begin_style (FontStyle)    -> void;
-        auto end_style   (FontStyle)    -> void;
-        auto color_code  (Color const&) -> unsigned;
-        static auto encode (std::string_view) -> std::string;
-
-    private:
-        std::ofstream*     ofst_;
-        std::vector<Color> colors_;
-    };
-
-    /**
-     *  @brief /dev/null code printer. Used to mease how long a line would be.
-     */
-    class DummyCodePrinter : public CommonCodePrinter
-    {
-    public:
-        DummyCodePrinter (IndentState);
-
-        auto begin_line () -> void override;
-        auto end_line   () -> void override;
-        auto blank_line () -> void override;
-        auto end_region () -> void override;
-
-        auto out (std::string_view) -> DummyCodePrinter& override;
-        auto out (std::string_view, TokenStyle const&) -> DummyCodePrinter& override;
-
-        auto get_column () const -> std::size_t;
-
-    private:
-        using base = CommonCodePrinter;
-
-    private:
-        std::size_t currentColumn_ {0};
-    };
-
-    /**
-     *  @brief Decorates code priter with line numbering.
-     */
-    class NumberedCodePrinter : public ICodePrinter
-    {
-    public:
-        NumberedCodePrinter(ICodePrinter&, std::size_t, TokenStyle);
-
-        auto inc_indent () -> void override;
-        auto dec_indent () -> void override;
-        auto begin_line () -> void override;
-        auto end_line   () -> void override;
-        auto wrap_line  () -> void override;
-        auto blank_line () -> void override;
-        auto end_region () -> void override;
-
-        auto out (std::string_view) -> NumberedCodePrinter& override;
-        auto out (std::string_view, TokenStyle const&) -> NumberedCodePrinter& override;
-
-        auto current_indent () const -> IndentState override;
-
-    private:
-        auto out_number () -> void;
-        auto out_spaces () -> void;
-
-    private:
-        inline static constexpr auto Spaces
-            = std::string_view("                                             ");
-
-    private:
-        ICodePrinter*     decoree_;
-        std::size_t const numWidth_;
-        TokenStyle const   numStyle_;
-        std::size_t       currentNum_;
-    };
+    // private:
+    //     ICodePrinter*     decoree_;
+    //     std::size_t const numWidth_;
+    //     TokenStyle const   numStyle_;
+    //     std::size_t       currentNum_;
+    // };
 
     // TODO use
     // struct IsInline
@@ -308,7 +101,7 @@ namespace fri
     class PseudocodeGenerator : public CodeVisitor
     {
     public:
-        PseudocodeGenerator (ICodePrinter&, CodeStyle);
+        PseudocodeGenerator (ICodeOutputter& out);
 
         auto visit (IntLiteral const&)           -> void override;
         auto visit (FloatLiteral const&)         -> void override;
@@ -387,10 +180,14 @@ namespace fri
          *  @tparam OutputType outputs `: int` or nothing for constructor.
          */
         template<class OutputName, class OutputType>
-        auto visit_decl (OutputName&&, std::vector<ParamDefinition> const&, OutputType&&) -> void;
+        auto visit_decl (
+            OutputName&&,
+            std::vector<ParamDefinition> const&,
+            OutputType&&
+        ) -> void;
 
         template<class Range>
-        auto output_range (Range&&, std::string_view, TokenStyle const&) -> void;
+        auto output_range (Range&&, std::string_view, TokenType) -> void;
 
         auto visit_args (std::vector<std::unique_ptr<Expression>> const&) -> void;
 
@@ -407,13 +204,12 @@ namespace fri
          *  of the last line. )
          */
         template<class LineOut>
-        auto try_output_length (LineOut&&) -> std::size_t;
+        auto try_output_length (LineOut&&) -> int64;
 
         auto map_func_name (std::string const&) const -> std::string_view;
 
     private:
-        ICodePrinter* out_;
-        CodeStyle style_;
+        ICodeOutputter* out_;
         std::unordered_map<std::string, std::string> funcNames_;
     };
 

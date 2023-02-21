@@ -248,7 +248,8 @@ auto main (int argc, char** argv) -> int
             fail(desc, "Output destination is not a directory.");
         }
     }
-    else if (outputTypeOpt != fri::OutputType::Console)
+    // else if (outputTypeOpt != fri::OutputType::Console) // toto funguje?
+    else if (*outputTypeOpt != fri::OutputType::Console)
     {
         fail(desc, "No output directory provided for non-console format.");
     }

@@ -99,5 +99,6 @@
         "*.inc": "cpp",
         "__verbose_abort": "cpp"
     },
-    "python.linting.enabled": true
+    "python.linting.enabled": true,
+    "cmake.configureOnOpen": false
 }
